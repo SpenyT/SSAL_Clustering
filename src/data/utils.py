@@ -1,9 +1,7 @@
 import os
-from pyparsing import Dict
 import torch
 import pickle
 import torchvision
-from torchvision import datasets
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 
@@ -70,3 +68,14 @@ def calculate_save_mean_std():
 
     mean, std = calculate_mean_std(loader)
     save_data({"mean": mean, "std": std})
+
+
+def unnormalize(img, mean=None, std=None):
+    if mean is None:
+        mean =load_data("mean")
+    if std is None:
+        std = load_data("std")
+    
+    mean = torch.tensor(mean).view(3,1,1)
+    std = torch.tensor(std).view(3,1,1)
+    return img * std + mean
