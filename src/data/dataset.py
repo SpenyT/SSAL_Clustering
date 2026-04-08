@@ -1,11 +1,13 @@
-import torchvision
-import torchvision.transforms as transforms
-
-from data.utils import DATA_DIR, CIFAR_DIR, load_data
 import os
+from typing import List
+import torchvision.transforms as transforms
+from torchvision.datasets import CIFAR100
+
+from data.dataset_type import IndexedCIFAR100
+from data.utils import DATA_DIR, CIFAR_DIR, load_data
 
 
-def get_transforms(mean, std):
+def get_transforms(mean: List[float], std: List[float]) -> tuple[transforms.Compose, transforms.Compose]:
     train_transform = transforms.Compose([
         transforms.RandomCrop(32, padding=4),
         transforms.RandomHorizontalFlip(),
@@ -23,7 +25,7 @@ def get_transforms(mean, std):
     return train_transform, test_transform
 
 
-def get_datasets():
+def get_datasets() -> tuple[CIFAR100, CIFAR100]:
     mean, std = load_data(["mean", "std"])
     if mean is None or std is None:
         raise RuntimeError("Mean/std not found — run calculate_save_mean_std() first.")
@@ -31,14 +33,14 @@ def get_datasets():
     train_transform, test_transform = get_transforms(mean, std)
     download = not os.path.exists(CIFAR_DIR)
 
-    train_dataset = torchvision.datasets.CIFAR100(
+    train_dataset = CIFAR100(
         root=DATA_DIR,
         train=True,
         download=download,
         transform=train_transform,
     )
 
-    test_dataset = torchvision.datasets.CIFAR100(
+    test_dataset = CIFAR100(
         root=DATA_DIR,
         train=False,
         download=download,
@@ -46,3 +48,16 @@ def get_datasets():
     )
 
     return train_dataset, test_dataset
+
+def get_indexed_datasets() -> tuple[IndexedCIFAR100, IndexedCIFAR100]:
+    mean, std = load_data(["mean", "std"])
+    if mean is None or std is None:
+        raise RuntimeError("Mean/std not found — run calculate_save_mean_std() first.")
+
+    train_transform, test_transform = get_transforms(mean, std)
+    download = not os.path.exists(CIFAR_DIR)
+
+    return (
+        IndexedCIFAR100(root=DATA_DIR, train=True, download=download, transform=train_transform), 
+        IndexedCIFAR100(root=DATA_DIR,train=False,download=download,transform=test_transform)
+    )
