@@ -3,14 +3,22 @@ import re
 import torch
 from typing import Final
 
-# helper
-
+# helpers
 def _get_next_file_num(results_dir: str) -> int:
     if not os.path.isdir(results_dir):
         return 1
     pattern = re.compile(r'results_(\d+)\.csv')
     nums = [int(m.group(1)) for f in os.listdir(results_dir) if (m := pattern.fullmatch(f))]
     return max(nums, default=0) + 1
+
+# checks if gpu can use mixed precision
+# essentially automatically casts floats from 32bit to 16bit when possible (by autocast)
+def _is_amp_supported() -> bool:
+    if DEVICE.type == "cuda":
+        return torch.cuda.get_device_capability()[0] >= 7
+    if DEVICE.type == "mps":
+        return True
+    return False
 
 
 # rand config
@@ -33,3 +41,4 @@ NUM_WORKERS: Final[int]  = max(1, os.cpu_count() // 2) # change to whatever is b
 N_GPUS:      Final[int]  = torch.cuda.device_count()
 DEVICE:      Final[str]  = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
 PIN_MEMORY:  Final[bool] = DEVICE.type != "cpu"
+USE_AMP: Final[bool] = _is_amp_supported()

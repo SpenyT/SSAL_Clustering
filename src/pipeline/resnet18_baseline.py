@@ -1,11 +1,17 @@
 import time
 import torch
 import torch.nn as nn
+from torch.amp import GradScaler, autocast
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from model.resnet import load_resnet18
-from model.model_utils import prepare_model
-from glob_config import DEVICE
+from model.model_utils import prepare_model, try_compile
+from glob_config import DEVICE, USE_AMP
+
+
+# if gpu ends up using amp, scaler just scales back up to float32
+_scaler = GradScaler(device=DEVICE.type) if (DEVICE.type == "cuda" and USE_AMP) else None
+
 
 def train_epoch(model: nn.Module, loader: DataLoader, optimizer: torch.optim.Optimizer, criterion: nn.Module) -> float:
     model.train()
@@ -13,9 +19,20 @@ def train_epoch(model: nn.Module, loader: DataLoader, optimizer: torch.optim.Opt
     for (imgs, labels), _ in tqdm(loader, desc="Train", leave=False):
         imgs, labels = imgs.to(DEVICE), labels.to(DEVICE)
         optimizer.zero_grad()
-        loss = criterion(model(imgs), labels)
-        loss.backward()
-        optimizer.step()
+        if USE_AMP:
+            with autocast(device_type=DEVICE.type):
+                loss = criterion(model(imgs), labels)
+            if _scaler is not None:
+                _scaler.scale(loss).backward()
+                _scaler.step(optimizer)
+                _scaler.update()
+            else:
+                loss.backward()
+                optimizer.step()
+        else:
+            loss = criterion(model(imgs), labels)
+            loss.backward()
+            optimizer.step()
         total_loss += loss.item()
     return total_loss / len(loader)
 
@@ -26,8 +43,13 @@ def evaluate(model: nn.Module, loader: DataLoader, criterion: nn.Module) -> tupl
     total_loss, correct, n = 0.0, 0, 0
     for (imgs, labels), _ in tqdm(loader, desc="Eval", leave=False):
         imgs, labels = imgs.to(DEVICE), labels.to(DEVICE)
-        logits = model(imgs)
-        total_loss += criterion(logits, labels).item()
+        if USE_AMP:
+            with autocast(device_type=DEVICE.type):
+                logits = model(imgs)
+                total_loss += criterion(logits, labels).item()
+        else:
+            logits = model(imgs)
+            total_loss += criterion(logits, labels).item()
         correct += (logits.argmax(dim=1) == labels).sum().item()
         n += labels.size(0)
     return total_loss / len(loader), correct / n
@@ -66,11 +88,11 @@ def training_loop(
 
 def run_pretrained(train_loader: DataLoader, test_loader: DataLoader, epochs: int = 30, lr: float = 0.01) -> None:
     print("\n-- ResNet18 (pretrained) --")
-    model = prepare_model(load_resnet18(with_pretrained_weights=True))
+    model = try_compile(prepare_model(load_resnet18(with_pretrained_weights=True)))
     training_loop(model, train_loader, test_loader, epochs, lr)
 
 
 def run_scratch(train_loader: DataLoader, test_loader: DataLoader, epochs: int = 30, lr: float = 0.01) -> None:
     print("\n-- ResNet18 (scratch) --")
-    model = prepare_model(load_resnet18(with_pretrained_weights=False))
+    model = try_compile(prepare_model(load_resnet18(with_pretrained_weights=False)))
     training_loop(model, train_loader, test_loader, epochs, lr)

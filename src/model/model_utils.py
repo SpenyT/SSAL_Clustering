@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 from glob_config import DEVICE, N_GPUS
 
 # I might be overengineering but I'm assuming you might like the convenience of having
@@ -10,3 +11,12 @@ def prepare_model(model: torch.nn.Module) -> torch.nn.Module:
     else:
         print(f"Using device: {DEVICE}")
     return model.to(DEVICE)
+
+# torch.compile only works on 20 series or newer NVIDIA gpus
+def try_compile(model: nn.Module) -> nn.Module:
+    if DEVICE.type == "cuda" and torch.cuda.get_device_capability()[0] < 7:
+        return model
+    try:
+        return torch.compile(model)
+    except Exception:
+        return model
