@@ -4,7 +4,7 @@ import torchvision.transforms as transforms
 from torchvision.datasets import CIFAR100
 
 from data.dataset_type import IndexedCIFAR100
-from data.utils import DATA_DIR, CIFAR_DIR, load_data
+from data.utils import DATA_DIR, CIFAR_DIR, get_mean_std
 
 
 def get_transforms(mean: List[float], std: List[float]) -> tuple[transforms.Compose, transforms.Compose]:
@@ -26,12 +26,7 @@ def get_transforms(mean: List[float], std: List[float]) -> tuple[transforms.Comp
 
 
 def get_datasets() -> tuple[CIFAR100, CIFAR100]:
-    mean, std = load_data(["mean", "std"])
-    if mean is None or std is None:
-        raise RuntimeError("Mean/std not found — run calculate_save_mean_std() first.")
-    else:
-        print(f"Successfully loaded [mean, std].")
-
+    mean, std = get_mean_std()
     train_transform, test_transform = get_transforms(mean, std)
     download = not os.path.exists(CIFAR_DIR)
 
@@ -52,12 +47,7 @@ def get_datasets() -> tuple[CIFAR100, CIFAR100]:
     return train_dataset, test_dataset
 
 def get_indexed_datasets() -> tuple[IndexedCIFAR100, IndexedCIFAR100]:
-    mean, std = load_data(["mean", "std"])
-    if mean is None or std is None:
-        raise RuntimeError("Mean/std not found — run calculate_save_mean_std() first.")
-    else:
-        print(f"Successfully loaded [mean, std].")
-
+    mean, std = get_mean_std()
     train_transform, test_transform = get_transforms(mean, std)
     download = not os.path.exists(CIFAR_DIR)
 

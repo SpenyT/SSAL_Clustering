@@ -48,7 +48,7 @@ def save_data(new_data: dict[str, Any]) -> None:
         pickle.dump(new_dict, f)
 
 
-def calculate_save_mean_std() -> None:
+def calculate_save_mean_std() -> tuple[list[float], list[float]]:
     stats_transform = transforms.Compose([
         transforms.ToTensor()
     ])
@@ -64,6 +64,16 @@ def calculate_save_mean_std() -> None:
     mean, std = calculate_mean_std(loader)
     save_data({"mean": mean, "std": std})
     print(f"Saved [mean:{mean}, std: {std}] to \"{CIFAR_DIR}\\variables.pkl\"")
+    return (mean, std)
+
+
+def get_mean_std() -> tuple[list[float], list[float]]:
+    loaded_mean = load_data("mean")
+    if not loaded_mean:
+        return calculate_save_mean_std() 
+    else:
+        print("Loaded [mean:{mean}, std: {std}] from \"{CIFAR_DIR}\\variables.pkl\"")
+        return (loaded_mean, load_data("std"))
 
 
 def unnormalize(img: Tensor, mean: list[float] | None = None, std: list[float] | None = None) -> Tensor:
