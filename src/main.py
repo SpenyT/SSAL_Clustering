@@ -6,10 +6,9 @@ from torch.utils.data import DataLoader
 
 from data.dataset import get_indexed_datasets
 from pipeline.resnet18_baseline import run_pretrained
+from glob_config import SEED
 
-SEED: Final[int] = 42
-
-def set_seed(seed=SEED):
+def set_seed(seed : int = SEED) -> None:
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
     np.random.seed(seed)
