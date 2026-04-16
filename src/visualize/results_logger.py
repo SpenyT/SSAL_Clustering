@@ -6,12 +6,14 @@ from dataclasses import dataclass
 @dataclass(slots=True, frozen=True)
 class LogEntry:
     model: str
-    epoch: int
+    budget: float
+    n_epochs: int
     train_loss: float
     test_loss: float
     test_acc: float
     train_time: float
     test_time: float
+    total_elapsed_time: float
 
 
 class ResultsLogger:
@@ -26,7 +28,7 @@ class ResultsLogger:
             return
         os.makedirs(RESULTS_DIR, exist_ok=True)
         with open(RESULTS_PATH, "w", newline="") as f:
-            csv.writer(f).writerow(["model", "epoch", "train_loss", "test_loss", "test_acc", "train_time", "test_time"])
+            csv.writer(f).writerow(["model", "budget", "n_epochs", "train_loss", "test_loss", "test_acc", "train_time", "test_time", "total_elapsed_time"])
         cls._initialized = True
 
     @classmethod
@@ -35,10 +37,12 @@ class ResultsLogger:
         with open(RESULTS_PATH, "a", newline="") as f:
             csv.writer(f).writerow([
                 log.model,
-                log.epoch,
+                f"{log.budget:.2f}",
+                log.n_epochs,
                 f"{log.train_loss:.6f}",
                 f"{log.test_loss:.6f}",
                 f"{log.test_acc:.6f}",
                 f"{log.train_time:.3f}",
-                f"{log.test_time:.3f}"
+                f"{log.test_time:.3f}",
+                f"{log.total_elapsed_time:.3f}"
             ])
