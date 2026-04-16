@@ -9,3 +9,6 @@ BASE_DIR:       Final[str] = os.path.dirname(os.path.dirname(os.path.dirname(os.
 DATA_DIR:       Final[str] = f"{BASE_DIR}/data"
 CIFAR_DIR:      Final[str] = f"{DATA_DIR}/cifar-100-python"
 VARIABLES_PATH: Final[str] = f"{DATA_DIR}/variables.pkl"
+
+# data definitions config
+ANNOTATION_BUDGETS: Final[list[float]] = [0.05, 0.1, 0.2, 0.5, 1.0]

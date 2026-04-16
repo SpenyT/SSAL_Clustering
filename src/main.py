@@ -5,9 +5,8 @@ from typing import Final
 from torch.utils.data import DataLoader
 
 from data.dataset import get_indexed_datasets
-from data.dataset_type import IndexedCIFARSubset
 from data.utils import load_data, calculate_save_mean_std
-from pipeline.resnet18_baseline import run_pretrained
+from pipeline.resnet18_baseline import run_budget_experiments
 from glob_config import SEED
 
 def set_seed(seed : int = SEED) -> None:
@@ -26,11 +25,6 @@ if __name__ == "__main__":
 
     train_dataset, test_dataset = get_indexed_datasets()
 
-    subset = IndexedCIFARSubset.from_dataset(train_dataset, budget=0.1) # 10% annot. budget
-    (img, label), idx = subset[0]
-
     # TODO: when implementing find a way to set num_workers automatically without taking all cores
-    train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True,  num_workers=4, pin_memory=True)
-    test_loader  = DataLoader(test_dataset,  batch_size=128, shuffle=False, num_workers=4, pin_memory=True)
-
-    run_pretrained(train_loader, test_loader, epochs=10)
+    test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False, num_workers=4, pin_memory=True, persistent_workers=True)
+    run_budget_experiments(train_dataset, test_loader, epochs=10)
