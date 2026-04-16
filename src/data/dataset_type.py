@@ -27,7 +27,7 @@ class IndexedCIFAR100(Dataset):
     def __len__(self) -> int: 
         return len(self._dataset)
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, int, int]:
-        return self._dataset[idx], idx # returns (image, label, index)
+        return self._dataset[idx], idx
     
 
 class IndexedCIFARSubset(IndexedCIFAR100):
@@ -58,7 +58,6 @@ class IndexedCIFARSubset(IndexedCIFAR100):
             self._indices = rng.choice(len(self), size=n_labeled, replace=False)
 
     
-    # TODO: use this method for budget tests
     @classmethod
     def from_dataset(cls, dataset: IndexedCIFAR100, budget: float, seed: int = SEED, uniform: bool = True) -> "IndexedCIFARSubset":
         instance = cls.__new__(cls)

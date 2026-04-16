@@ -53,5 +53,5 @@ def get_indexed_datasets() -> tuple[IndexedCIFAR100, IndexedCIFAR100]:
 
     return (
         IndexedCIFAR100(root=DATA_DIR, train=True, download=download, transform=train_transform), 
-        IndexedCIFAR100(root=DATA_DIR,train=False,download=download,transform=test_transform)
+        IndexedCIFAR100(root=DATA_DIR, train=False, download=download, transform=test_transform)
     )
