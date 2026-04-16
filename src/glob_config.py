@@ -16,5 +16,6 @@ ANNOTATION_BUDGETS: Final[list[float]] = [0.05, 0.1, 0.2, 0.5, 1.0]
 
 # runtime config
 NUM_WORKERS: Final[int] = max(1, os.cpu_count() // 2) # change to whatever is best for you
-DEVICE : Final[torch.DeviceObjType] = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+DEVICE : Final[str] = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
 N_GPUS : Final[int] = torch.cuda.device_count()
+PIN_MEMORY : Final[bool] = DEVICE.type != "cpu"

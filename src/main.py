@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 from data.dataset import get_indexed_datasets
 from data.utils import load_data, calculate_save_mean_std
 from pipeline.resnet18_baseline import run_budget_experiments
-from glob_config import NUM_WORKERS, SEED
+from glob_config import NUM_WORKERS, SEED, PIN_MEMORY, DEVICE
 
 def set_seed(seed : int = SEED) -> None:
     torch.manual_seed(seed)
@@ -19,11 +19,13 @@ def set_seed(seed : int = SEED) -> None:
 
 if __name__ == "__main__":
     set_seed(SEED)
+    print("Pin memory: ", PIN_MEMORY)
+    print("Device: ", DEVICE)
 
     if not load_data("mean"):
         calculate_save_mean_std()
 
     train_dataset, test_dataset = get_indexed_datasets()
 
-    test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False, num_workers=NUM_WORKERS, pin_memory=True, persistent_workers=True)
+    test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY, persistent_workers=True)
     run_budget_experiments(train_dataset, test_loader, epochs=10)

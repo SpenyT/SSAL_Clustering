@@ -5,9 +5,9 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from model.resnet import load_resnet18
-from model.model_config import prepare_model
+from model.model_utils import prepare_model
 from data.dataset_type import IndexedCIFAR100, IndexedCIFARSubset
-from glob_config import ANNOTATION_BUDGETS, DEVICE
+from glob_config import ANNOTATION_BUDGETS, DEVICE, PIN_MEMORY
 
 
 def train_epoch(model: nn.Module, loader: DataLoader, optimizer: torch.optim.Optimizer, criterion: nn.Module) -> float:
@@ -89,7 +89,7 @@ def run_budget_experiments(
     for budget in ANNOTATION_BUDGETS:
         subset = IndexedCIFARSubset.from_dataset(train_dataset, budget=budget)
         print(f"\nAnnotation Budget: {int(budget * 100)}% ({len(subset)} samples)")
-        train_loader = DataLoader(subset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True, persistent_workers=True)
+        train_loader = DataLoader(subset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=PIN_MEMORY, persistent_workers=True)
 
         print("-- pretrained --")
         model = prepare_model(load_resnet18(with_pretrained_weights=True))
