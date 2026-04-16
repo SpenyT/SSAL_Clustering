@@ -17,7 +17,7 @@ def run_budget_experiments(epochs: int = 30, lr: float = 0.01, batch_size: int =
         print(f"\nAnnotation Budget: {int(budget * 100)}% ({len(resnet_subset)} samples)")
         
         train_loader = DataLoader(resnet_subset, batch_size=batch_size, shuffle=True, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY, persistent_workers=True)
-        run_scratch(train_loader, test_loader, 30, lr)
-        run_pretrained(train_loader, test_loader, 30, lr)
+        run_scratch(train_loader, test_loader, epochs, lr)
+        run_pretrained(train_loader, test_loader, epochs, lr)
         
         #TODO: add SSALC
