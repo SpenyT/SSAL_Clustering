@@ -31,11 +31,31 @@ class IndexedCIFAR100(Dataset):
     
 
 class IndexedCIFARSubset(IndexedCIFAR100):
-    def __init__(self, root: str, train: bool, transform: transforms.Compose, budget: float, seed: int = SEED, download=True) -> None:
+    def __init__(
+        self,
+        root: str,
+        train: bool,
+        transform: transforms.Compose,
+        budget: float,
+        seed: int = SEED,
+        uniform: bool = True,
+        download: bool = True,
+    ) -> None:
         super().__init__(root, train, transform, download)
         n_labeled = int(len(self) * budget)
         rng = np.random.default_rng(seed)
-        self._indices = rng.choice(len(self), size=n_labeled, replace=False)
 
-    def __len__(self): return len(self._indices)
-    def __getitem__(self, idx): return super().__getitem__(self._indices[idx])
+        if uniform:
+            n_per_class = n_labeled // len(self.classes)
+            targets = np.array(self.targets)
+            indices = []
+            for c in range(len(self.classes)):
+                class_indices = np.where(targets == c)[0]
+                chosen = rng.choice(class_indices, size=n_per_class, replace=False)
+                indices.extend(chosen)
+            self._indices = np.array(indices)
+        else:
+            self._indices = rng.choice(len(self), size=n_labeled, replace=False)
+
+    def __len__(self) -> int: return len(self._indices)
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, int, int]: return super().__getitem__(self._indices[idx])
