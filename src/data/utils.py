@@ -13,6 +13,7 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 CIFAR_DIR = os.path.join(DATA_DIR, "cifar-100-python")
 VARIABLES_PATH = os.path.join(DATA_DIR, "variables.pkl")
 
+# taken from https://forums.fast.ai/t/normalizing-your-dataset/49799
 def calculate_mean_std(loader: DataLoader) -> tuple[list[float], list[float]]:
     n = 0
     s1 = torch.zeros(3)
