@@ -3,12 +3,9 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-
 from model.resnet import load_resnet18
 from model.model_utils import prepare_model
-from data.dataset_type import IndexedCIFAR100, IndexedCIFARSubset
-from glob_config import ANNOTATION_BUDGETS, DEVICE, PIN_MEMORY
-
+from glob_config import DEVICE
 
 def train_epoch(model: nn.Module, loader: DataLoader, optimizer: torch.optim.Optimizer, criterion: nn.Module) -> float:
     model.train()
@@ -68,33 +65,12 @@ def training_loop(
 
 
 def run_pretrained(train_loader: DataLoader, test_loader: DataLoader, epochs: int = 30, lr: float = 0.01) -> None:
-    print("\nResNet18 (pretrained):")
+    print("\n-- ResNet18 (pretrained) --")
     model = prepare_model(load_resnet18(with_pretrained_weights=True))
     training_loop(model, train_loader, test_loader, epochs, lr)
 
 
 def run_scratch(train_loader: DataLoader, test_loader: DataLoader, epochs: int = 30, lr: float = 0.01) -> None:
-    print("\nResNet18 (scratch):")
+    print("\n-- ResNet18 (scratch) --")
     model = prepare_model(load_resnet18(with_pretrained_weights=False))
     training_loop(model, train_loader, test_loader, epochs, lr)
-
-
-def run_budget_experiments(
-    train_dataset: IndexedCIFAR100,
-    test_loader: DataLoader,
-    epochs: int = 30,
-    lr: float = 0.01,
-    batch_size: int = 128,
-) -> None:
-    for budget in ANNOTATION_BUDGETS:
-        subset = IndexedCIFARSubset.from_dataset(train_dataset, budget=budget)
-        print(f"\nAnnotation Budget: {int(budget * 100)}% ({len(subset)} samples)")
-        train_loader = DataLoader(subset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=PIN_MEMORY, persistent_workers=True)
-
-        print("-- pretrained --")
-        model = prepare_model(load_resnet18(with_pretrained_weights=True))
-        training_loop(model, train_loader, test_loader, epochs, lr)
-
-        print("-- scratch --")
-        model = prepare_model(load_resnet18(with_pretrained_weights=False))
-        training_loop(model, train_loader, test_loader, epochs, lr)

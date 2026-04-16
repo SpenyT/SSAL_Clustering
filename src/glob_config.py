@@ -1,6 +1,6 @@
 import os
 import torch
-from typing_extensions import Final
+from typing import Final
 
 # rand config
 SEED: Final[int] = 42
@@ -14,8 +14,8 @@ VARIABLES_PATH: Final[str] = f"{DATA_DIR}/variables.pkl"
 # data definitions config
 ANNOTATION_BUDGETS: Final[list[float]] = [0.05, 0.1, 0.2, 0.5, 1.0]
 
-# runtime config
-NUM_WORKERS: Final[int] = max(1, os.cpu_count() // 2) # change to whatever is best for you
-DEVICE : Final[str] = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
-N_GPUS : Final[int] = torch.cuda.device_count()
-PIN_MEMORY : Final[bool] = DEVICE.type != "cpu"
+# device config
+NUM_WORKERS: Final[int]  = max(1, os.cpu_count() // 2) # change to whatever is best for you
+N_GPUS:      Final[int]  = torch.cuda.device_count()
+DEVICE:      Final[str]  = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
+PIN_MEMORY:  Final[bool] = DEVICE.type != "cpu"
