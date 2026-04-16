@@ -1,7 +1,5 @@
 import torch
-
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-N_GPUS = torch.cuda.device_count()
+from glob_config import DEVICE, N_GPUS
 
 # I might be overengineering but I'm assuming you might like the convenience of having
 # the possibility of using multiple GPUs

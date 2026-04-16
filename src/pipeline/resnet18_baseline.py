@@ -5,9 +5,9 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from model.resnet import load_resnet18
-from model.config import DEVICE, prepare_model
+from model.model_config import prepare_model
 from data.dataset_type import IndexedCIFAR100, IndexedCIFARSubset
-from glob_config import ANNOTATION_BUDGETS
+from glob_config import ANNOTATION_BUDGETS, DEVICE
 
 
 def train_epoch(model: nn.Module, loader: DataLoader, optimizer: torch.optim.Optimizer, criterion: nn.Module) -> float:
