@@ -63,6 +63,7 @@ def calculate_save_mean_std() -> None:
     loader = DataLoader(stats_dataset, batch_size=256, shuffle=False)
     mean, std = calculate_mean_std(loader)
     save_data({"mean": mean, "std": std})
+    print(f"Saved [mean:{mean}, std: {std}] to \"{CIFAR_DIR}\\variables.pkl\"")
 
 
 def unnormalize(img: Tensor, mean: list[float] | None = None, std: list[float] | None = None) -> Tensor:

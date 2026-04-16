@@ -29,6 +29,8 @@ def get_datasets() -> tuple[CIFAR100, CIFAR100]:
     mean, std = load_data(["mean", "std"])
     if mean is None or std is None:
         raise RuntimeError("Mean/std not found — run calculate_save_mean_std() first.")
+    else:
+        print(f"Successfully loaded [mean, std].")
 
     train_transform, test_transform = get_transforms(mean, std)
     download = not os.path.exists(CIFAR_DIR)
@@ -53,6 +55,8 @@ def get_indexed_datasets() -> tuple[IndexedCIFAR100, IndexedCIFAR100]:
     mean, std = load_data(["mean", "std"])
     if mean is None or std is None:
         raise RuntimeError("Mean/std not found — run calculate_save_mean_std() first.")
+    else:
+        print(f"Successfully loaded [mean, std].")
 
     train_transform, test_transform = get_transforms(mean, std)
     download = not os.path.exists(CIFAR_DIR)

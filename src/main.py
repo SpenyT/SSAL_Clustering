@@ -19,8 +19,6 @@ def set_seed(seed : int = SEED) -> None:
 
 if __name__ == "__main__":
     set_seed(SEED)
-    print("Pin memory: ", PIN_MEMORY)
-    print("Device: ", DEVICE)
 
     if not load_data("mean"):
         calculate_save_mean_std()
