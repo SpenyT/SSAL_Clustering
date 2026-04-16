@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 from data.dataset import get_indexed_datasets
 from data.utils import load_data, calculate_save_mean_std
 from pipeline.resnet18_baseline import run_budget_experiments
-from glob_config import SEED
+from glob_config import NUM_WORKERS, SEED
 
 def set_seed(seed : int = SEED) -> None:
     torch.manual_seed(seed)
@@ -25,6 +25,5 @@ if __name__ == "__main__":
 
     train_dataset, test_dataset = get_indexed_datasets()
 
-    # TODO: when implementing find a way to set num_workers automatically without taking all cores
-    test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False, num_workers=4, pin_memory=True, persistent_workers=True)
+    test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False, num_workers=NUM_WORKERS, pin_memory=True, persistent_workers=True)
     run_budget_experiments(train_dataset, test_loader, epochs=10)
