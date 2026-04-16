@@ -42,7 +42,7 @@ class IndexedCIFARSubset(IndexedCIFAR100):
         download: bool = True,
     ) -> None:
         super().__init__(root, train, transform, download)
-        n_labeled = int(len(self) * budget)
+        n_labeled = int(super().__len__() * budget)
         rng = np.random.default_rng(seed)
 
         if uniform:
@@ -56,6 +56,29 @@ class IndexedCIFARSubset(IndexedCIFAR100):
             self._indices = np.array(indices)
         else:
             self._indices = rng.choice(len(self), size=n_labeled, replace=False)
+
+    
+    # TODO: use this method for budget tests
+    @classmethod
+    def from_dataset(cls, dataset: IndexedCIFAR100, budget: float, seed: int = SEED, uniform: bool = True) -> "IndexedCIFARSubset":
+        instance = cls.__new__(cls)
+        instance._dataset = dataset._dataset
+        instance.classes = dataset.classes
+        instance.targets = dataset.targets
+        n_labeled = int(len(dataset) * budget)
+        rng = np.random.default_rng(seed)
+        if uniform:
+            n_per_class = n_labeled // len(instance.classes)
+            targets = np.array(instance.targets)
+            indices = []
+            for c in range(len(instance.classes)):
+                class_indices = np.where(targets == c)[0]
+                chosen = rng.choice(class_indices, size=n_per_class, replace=False)
+                indices.extend(chosen)
+            instance._indices = np.array(indices)
+        else:
+            instance._indices = rng.choice(len(dataset), size=n_labeled, replace=False)
+        return instance
 
     def __len__(self) -> int: return len(self._indices)
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, int, int]: return super().__getitem__(self._indices[idx])
