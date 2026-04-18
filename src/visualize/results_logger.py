@@ -1,6 +1,5 @@
 import csv
 import os
-from glob_config import RESULTS_DIR, RESULTS_PATH
 from dataclasses import dataclass
 
 @dataclass(slots=True, frozen=True)
@@ -15,34 +14,39 @@ class LogEntry:
     test_time: float
     total_elapsed_time: float
 
+    # could have used __itter__ too, but this will do
+    def get_values(self):
+        return [
+            self.model,
+            f"{self.budget:.2f}",
+            self.n_epochs,
+            f"{self.train_loss:.6f}",
+            f"{self.test_loss:.6f}",
+            f"{self.test_acc:.6f}",
+            f"{self.train_time:.3f}",
+            f"{self.test_time:.3f}",
+            f"{self.total_elapsed_time:.3f}"
+        ]
+
+
 
 class ResultsLogger:
-    _initialized: bool = False
+    _path: str | None = None
 
     def __new__(cls):
         raise TypeError("Use ResultsLogger as a static class.")
-
+    
     @classmethod
-    def _ensure_open(cls) -> None:
-        if cls._initialized:
-            return
-        os.makedirs(RESULTS_DIR, exist_ok=True)
-        with open(RESULTS_PATH, "w", newline="") as f:
-            csv.writer(f).writerow(["model", "budget", "n_epochs", "train_loss", "test_loss", "test_acc", "train_time", "test_time", "total_elapsed_time"])
-        cls._initialized = True
+    def init(cls, path: str, append: bool = False) -> None:
+        cls._path = path
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        if not append:
+            with open(path, "w", newline="") as f:
+                csv.writer(f).writerow(LogEntry.__dataclass_fields__.keys())
 
     @classmethod
     def write_log(cls, log: LogEntry) -> None:
-        cls._ensure_open()
-        with open(RESULTS_PATH, "a", newline="") as f:
-            csv.writer(f).writerow([
-                log.model,
-                f"{log.budget:.2f}",
-                log.n_epochs,
-                f"{log.train_loss:.6f}",
-                f"{log.test_loss:.6f}",
-                f"{log.test_acc:.6f}",
-                f"{log.train_time:.3f}",
-                f"{log.test_time:.3f}",
-                f"{log.total_elapsed_time:.3f}"
-            ])
+        if cls._path is None:
+            raise RuntimeError("Call ResultsLogger.init() before writing logs.")
+        with open(cls._path, "a", newline="") as f:
+            csv.writer(f).writerow(log.get_values())
