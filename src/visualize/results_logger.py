@@ -15,7 +15,7 @@ class LogEntry:
     test_time: float
     total_elapsed_time: float
 
-    # could have used __itter__ too, but this will do
+    # could have used __iter__ too, but this will do
     def get_values(self):
         return [
             self.model,
