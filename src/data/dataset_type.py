@@ -6,9 +6,87 @@ import numpy as np
 from glob_config import SEED
 
 
-# wrapper for CIFAR100 that also returns the index of each sample. Easier
-# for clustering
+def _sample_indices(
+    targets: np.ndarray,
+    classes: list,
+    n_labeled: int,
+    rng: np.random.Generator,
+    uniform: bool,
+) -> np.ndarray:
+    """
+    Sample dataset indices for a labeled subset.
+
+    If uniform, samples an equal number of indices per class.
+    Otherwise, samples randomly across the full dataset.
+
+    Arguments
+    ---------
+    targets : np.ndarray
+        Class label for each sample in the dataset, shape (N,).
+    classes : list
+        List of class names, used to determine the number of classes.
+    n_labeled : int
+        Total number of indices to sample.
+    rng : np.random.Generator
+        Seeded random number generator for reproducibility.
+    uniform : bool
+        If True, samples floor(n_labeled / n_classes) indices per class.
+        If False, samples n_labeled indices at random.
+
+    Returns
+    -------
+    np.ndarray
+        Sampled indices of shape (n_labeled,).
+
+    Example
+    -------
+    >>> rng = np.random.default_rng(42)
+    >>> indices = _sample_indices(
+    ...     targets, classes, n_labeled=500, rng=rng, uniform=True
+    ... )
+    >>> indices.shape
+    (500,)
+    """
+    if uniform:
+        n_per_class = n_labeled // len(classes)
+        indices: list[int] = []
+        for c in range(len(classes)):
+            class_indices = np.where(targets == c)[0]
+            indices.extend(
+                rng.choice(class_indices, size=n_per_class, replace=False)
+            )
+        return np.array(indices)
+    return rng.choice(len(targets), size=n_labeled, replace=False)
+
+
 class IndexedCIFAR100(Dataset):
+    """
+    CIFAR-100 dataset wrapper that also returns the sample index.
+
+    Wraps torchvision's CIFAR100 so that each call to __getitem__
+    returns the sample alongside its dataset index. This makes it
+    easier to track individual samples during clustering and active
+    learning.
+
+    Arguments
+    ---------
+    root : str
+        Path to the directory where the dataset is stored or downloaded.
+    train : bool
+        If True, loads the training split. If False, loads the test split.
+    transform : transforms.Compose
+        Transforms applied to each image before returning.
+    download : bool
+        If True, downloads the dataset if not already present. Default: True.
+
+    Example
+    -------
+    >>> dataset = IndexedCIFAR100(
+    ...     root="data/", train=True, transform=transform
+    ... )
+    >>> (img, label), idx = dataset[0]
+    """
+
     def __init__(
         self,
         root: str,
@@ -28,11 +106,45 @@ class IndexedCIFAR100(Dataset):
     def __len__(self) -> int:
         return len(self._dataset)
 
-    def __getitem__(self, idx: int) -> tuple[torch.Tensor, int, int]:
+    def __getitem__(self, idx: int) -> tuple[tuple[torch.Tensor, int], int]:
         return self._dataset[idx], idx
 
 
 class IndexedCIFARSubset(IndexedCIFAR100):
+    """
+    A labeled subset of IndexedCIFAR100 sampled by annotation budget.
+
+    Selects a fixed subset of the training data at construction time,
+    either uniformly across classes or randomly. Used to simulate
+    annotation budgets in baseline experiments.
+
+    Arguments
+    ---------
+    root : str
+        Path to the directory where the dataset is stored or downloaded.
+    train : bool
+        If True, loads the training split. If False, loads the test split.
+    transform : transforms.Compose
+        Transforms applied to each image before returning.
+    budget : float
+        Fraction of the dataset to label, in range (0, 1].
+    seed : int
+        Random seed for reproducibility. Default: SEED.
+    uniform : bool
+        If True, samples floor(n_labeled / n_classes) per class.
+        If False, samples randomly across the full dataset. Default: True.
+    download : bool
+        If True, downloads the dataset if not already present. Default: True.
+
+    Example
+    -------
+    >>> subset = IndexedCIFARSubset(
+    ...     root="data/", train=True, transform=transform, budget=0.1
+    ... )
+    >>> len(subset)  # 10% of 50000
+    5000
+    """
+
     def __init__(
         self,
         root: str,
@@ -47,21 +159,9 @@ class IndexedCIFARSubset(IndexedCIFAR100):
         n_labeled = int(super().__len__() * budget)
         rng = np.random.default_rng(seed)
 
-        if uniform:
-            n_per_class = n_labeled // len(self.classes)
-            targets = np.array(self.targets)
-            indices = []
-            for c in range(len(self.classes)):
-                class_indices = np.where(targets == c)[0]
-                chosen = rng.choice(
-                    class_indices, size=n_per_class, replace=False
-                )
-                indices.extend(chosen)
-            self._indices = np.array(indices)
-        else:
-            self._indices = rng.choice(
-                len(self), size=n_labeled, replace=False
-            )
+        self._indices = _sample_indices(
+            np.array(self.targets), self.classes, n_labeled, rng, uniform
+        )
 
     @classmethod
     def from_dataset(
@@ -71,27 +171,52 @@ class IndexedCIFARSubset(IndexedCIFAR100):
         seed: int = SEED,
         uniform: bool = True,
     ) -> "IndexedCIFARSubset":
+        """
+        Create an IndexedCIFARSubset from an existing IndexedCIFAR100 instance.
+
+        Avoids re-loading the dataset from disk by reusing an already
+        constructed IndexedCIFAR100. Preferred over __init__ when the
+        full dataset is already in memory.
+
+        Arguments
+        ---------
+        dataset : IndexedCIFAR100
+            The full dataset to sample from.
+        budget : float
+            Fraction of the dataset to label, in range (0, 1].
+        seed : int
+            Random seed for reproducibility. Default: SEED.
+        uniform : bool
+            If True, samples floor(n_labeled / n_classes) per class.
+            If False, samples randomly across the full dataset. Default: True.
+
+        Returns
+        -------
+        IndexedCIFARSubset
+            A new subset instance backed by the provided dataset.
+
+        Example
+        -------
+        >>> full = IndexedCIFAR100(
+        ...     root="data/", train=True, transform=transform
+        ... )
+        >>> subset = IndexedCIFARSubset.from_dataset(full, budget=0.1)
+        >>> len(subset)
+        5000
+        """
         instance = cls.__new__(cls)
         instance._dataset = dataset._dataset
         instance.classes = dataset.classes
         instance.targets = dataset.targets
         n_labeled = int(len(dataset) * budget)
         rng = np.random.default_rng(seed)
-        if uniform:
-            n_per_class = n_labeled // len(instance.classes)
-            targets = np.array(instance.targets)
-            indices = []
-            for c in range(len(instance.classes)):
-                class_indices = np.where(targets == c)[0]
-                chosen = rng.choice(
-                    class_indices, size=n_per_class, replace=False
-                )
-                indices.extend(chosen)
-            instance._indices = np.array(indices)
-        else:
-            instance._indices = rng.choice(
-                len(dataset), size=n_labeled, replace=False
-            )
+        instance._indices = _sample_indices(
+            np.array(instance.targets),
+            instance.classes,
+            n_labeled,
+            rng,
+            uniform,
+        )
         return instance
 
     def __len__(self) -> int:
@@ -101,10 +226,32 @@ class IndexedCIFARSubset(IndexedCIFAR100):
         return super().__getitem__(self._indices[idx])
 
 
+######################################
 # Active learning section
-
-
+######################################
 class _PoolView(Dataset):
+    """
+    A view over a subset of an IndexedCIFAR100 dataset.
+
+    Presents a subset of a dataset defined by an index array, without
+    copying any underlying data. Used internally by ActiveLearningPool
+    to expose the labeled and unlabeled splits as standard Dataset objects.
+    Not intended to be instantiated directly.
+
+    Arguments
+    ---------
+    base : IndexedCIFAR100
+        The full dataset to index into.
+    indices : np.ndarray
+        Array of indices defining which samples are visible in this view.
+
+    Example
+    -------
+    >>> view = _PoolView(dataset, indices=np.array([0, 5, 12]))
+    >>> len(view)
+    3
+    """
+
     def __init__(self, base: "IndexedCIFAR100", indices: np.ndarray) -> None:
         self._base = base
         self._indices = indices
@@ -117,6 +264,37 @@ class _PoolView(Dataset):
 
 
 class ActiveLearningPool:
+    """
+    Manages the labeled/unlabeled split for an active learning loop.
+
+    Maintains two dynamic index sets (labeled and unlabeled) over a
+    training dataset. The split evolves as the active learning loop
+    queries samples via label(). Exposes each split as a Dataset view
+    for use with DataLoader.
+
+    Arguments
+    ---------
+    train_dataset : IndexedCIFAR100
+        Dataset used for training (with augmentation transforms).
+    extract_dataset : IndexedCIFAR100
+        Dataset used for feature extraction (without augmentation).
+        Must be the same size as train_dataset.
+    initial_budget : float
+        Fraction of the dataset to label initially, in range (0, 1].
+    seed : int
+        Random seed for reproducibility. Default: SEED.
+    uniform : bool
+        If True, samples floor(n_labeled / n_classes) per class for
+        the initial labeled set. If False, samples randomly. Default: True.
+
+    Example
+    -------
+    >>> pool = ActiveLearningPool(train_ds, extract_ds, initial_budget=0.05)
+    >>> pool.label(np.array([42, 137, 256]))
+    >>> pool.n_labeled
+    2503
+    """
+
     def __init__(
         self,
         train_dataset: IndexedCIFAR100,
@@ -135,20 +313,13 @@ class ActiveLearningPool:
         n_labeled = int(n_total * initial_budget)
         rng = np.random.default_rng(seed)
 
-        if uniform:
-            targets = np.array(train_dataset.targets)
-            n_per_class = n_labeled // len(train_dataset.classes)
-            labeled: list[int] = []
-            for c in range(len(train_dataset.classes)):
-                class_indices = np.where(targets == c)[0]
-                labeled.extend(
-                    rng.choice(class_indices, size=n_per_class, replace=False)
-                )
-            self._labeled = np.array(labeled, dtype=np.int64)
-        else:
-            self._labeled = rng.choice(
-                n_total, size=n_labeled, replace=False
-            ).astype(np.int64)
+        self._labeled = _sample_indices(
+            np.array(train_dataset.targets),
+            train_dataset.classes,
+            n_labeled,
+            rng,
+            uniform,
+        ).astype(np.int64)
 
         labeled_set = set(self._labeled.tolist())
         self._unlabeled = np.array(
@@ -157,13 +328,67 @@ class ActiveLearningPool:
 
     @property
     def labeled_dataset(self) -> _PoolView:
+        """
+        View of the current labeled split, backed by train_dataset.
+
+        Returns
+        -------
+        _PoolView
+            A Dataset view of the labeled split, using train_dataset for
+            data access (with augmentation).
+
+        Example
+        -------
+        >>> pool = ActiveLearningPool(
+        ...     train_ds, extract_ds, initial_budget=0.05
+        ... )
+        >>> len(pool.labeled_dataset)
+        2500
+        """
         return _PoolView(self._train_ds, self._labeled)
 
     @property
     def unlabeled_dataset(self) -> _PoolView:
+        """
+        View of the current unlabeled split, backed by extract_dataset.
+
+        Returns
+        -------
+        _PoolView
+            A Dataset view of the unlabeled split, using extract_dataset
+            for data access (without augmentation).
+
+        Example
+        -------
+        >>> pool = ActiveLearningPool(
+        ...     train_ds, extract_ds, initial_budget=0.05
+        ... )
+        >>> len(pool.unlabeled_dataset)
+        47500
+        """
         return _PoolView(self._extract_ds, self._unlabeled)
 
     def label(self, indices: np.ndarray) -> None:
+        """
+        Move samples from the unlabeled pool into the labeled set.
+
+        Indices already in the labeled set are silently ignored.
+
+        Arguments
+        ---------
+        indices : np.ndarray
+            Dataset indices to label. Values not in the unlabeled pool
+            are ignored.
+
+        Example
+        -------
+        >>> pool = ActiveLearningPool(
+        ...     train_ds, extract_ds, initial_budget=0.05
+        ... )
+        >>> pool.label(np.array([42, 137, 256]))
+        >>> pool.n_labeled
+        2503
+        """
         indices = np.asarray(indices, dtype=np.int64)
         to_add = indices[np.isin(indices, self._unlabeled)]
         if len(to_add) == 0:
@@ -176,8 +401,40 @@ class ActiveLearningPool:
 
     @property
     def n_labeled(self) -> int:
+        """
+        Number of currently labeled samples.
+
+        Returns
+        -------
+        int
+            Number of samples currently in the labeled pool.
+
+        Example
+        -------
+        >>> pool = ActiveLearningPool(
+        ...     train_ds, extract_ds, initial_budget=0.05
+        ... )
+        >>> pool.n_labeled
+        2500
+        """
         return len(self._labeled)
 
     @property
     def n_unlabeled(self) -> int:
+        """
+        Number of currently unlabeled samples.
+
+        Returns
+        -------
+        int
+            Number of samples currently in the unlabeled pool.
+
+        Example
+        -------
+        >>> pool = ActiveLearningPool(
+        ...     train_ds, extract_ds, initial_budget=0.05
+        ... )
+        >>> pool.n_unlabeled
+        47500
+        """
         return len(self._unlabeled)
