@@ -32,6 +32,14 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+For GPU-accelerated UMAP via RAPIDS cuML (requires a CUDA-capable GPU):
+
+```bash
+pip install ".[gpu]"
+```
+
+> **Note:** cuML requires Linux or WSL2. On Windows or macOS the CPU fallback (`umap-learn`) is used automatically.
+
 ### 4. Run
 
 ```bash
