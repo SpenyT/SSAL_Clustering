@@ -73,7 +73,7 @@ def get_mean_std() -> tuple[list[float], list[float]]:
         return calculate_save_mean_std()
     else:
         print(
-            'Loaded [mean:{mean}, std: {std}]'
+            "Loaded [mean:{mean}, std: {std}]"
             f' from "{CIFAR_DIR}\\variables.pkl"'
         )
         return (loaded_mean, load_data("std"))

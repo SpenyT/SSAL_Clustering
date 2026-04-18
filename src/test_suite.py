@@ -26,8 +26,7 @@ def run_budget_experiments(
         )
         pct = int(budget * 100)
         print(
-            f"\nAnnotation Budget: {pct}%"
-            f" ({len(resnet_subset)} samples)"
+            f"\nAnnotation Budget: {pct}%" f" ({len(resnet_subset)} samples)"
         )
 
         train_loader = DataLoader(
