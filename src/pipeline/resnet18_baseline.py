@@ -30,6 +30,34 @@ def train_epoch(
     optimizer: torch.optim.Optimizer,
     criterion: nn.Module,
 ) -> float:
+    """
+    Run one training epoch over the dataset.
+
+    Iterates all batches, computes cross-entropy loss, and updates
+    model weights. Supports AMP with optional gradient scaling.
+
+    Arguments
+    ---------
+    model : nn.Module
+        The model to train.
+    loader : DataLoader
+        DataLoader over the training dataset.
+    optimizer : torch.optim.Optimizer
+        Optimizer used to update model weights.
+    criterion : nn.Module
+        Loss function.
+
+    Returns
+    -------
+    float
+        Mean training loss over all batches.
+
+    Example
+    -------
+    >>> loss = train_epoch(model, train_loader, optimizer, criterion)
+    >>> print(f"Train loss: {loss:.4f}")
+    Train loss: 1.2345
+    """
     model.train()
     total_loss = 0.0
     for (imgs, labels), _ in tqdm(loader, desc="Train", leave=False):
@@ -59,6 +87,33 @@ def train_epoch(
 def evaluate(
     model: nn.Module, loader: DataLoader, criterion: nn.Module
 ) -> tuple[float, float]:
+    """
+    Evaluate model loss and accuracy on a dataset.
+
+    Runs inference over all batches without gradient computation.
+    Supports AMP if enabled in glob_config.
+
+    Arguments
+    ---------
+    model : nn.Module
+        The model to evaluate.
+    loader : DataLoader
+        DataLoader over the evaluation dataset.
+    criterion : nn.Module
+        Loss function.
+
+    Returns
+    -------
+    tuple[float, float]
+        A (loss, accuracy) pair, where loss is the mean over all
+        batches and accuracy is the fraction of correct predictions.
+
+    Example
+    -------
+    >>> loss, acc = evaluate(model, test_loader, criterion)
+    >>> print(f"Loss: {loss:.4f} | Acc: {acc:.4f}")
+    Loss: 0.8321 | Acc: 0.7654
+    """
     model.eval()
     total_loss, correct, n = 0.0, 0, 0
     for (imgs, labels), _ in tqdm(loader, desc="Eval", leave=False):
@@ -87,6 +142,48 @@ def training_loop(
     epochs: int = 30,
     lr: float = 0.01,
 ) -> tuple[float, float, float, float, float, float]:
+    """
+    Run the full training loop with checkpointing and evaluation.
+
+    Trains the model for the specified number of epochs using SGD with
+    cosine annealing. Evaluates on the test set after each epoch and
+    saves a checkpoint. Optionally resumes from the latest checkpoint
+    if IS_RESUME is set in glob_config.
+
+    Arguments
+    ---------
+    model : nn.Module
+        The model to train.
+    train_loader : DataLoader
+        DataLoader over the training dataset.
+    test_loader : DataLoader
+        DataLoader over the test dataset.
+    path : str
+        File path where checkpoints are saved.
+    model_name : str
+        Name used to identify checkpoints when resuming.
+    budget : float
+        Annotation budget fraction, used for checkpoint lookup.
+    epochs : int
+        Total number of training epochs. Default: 30.
+    lr : float
+        Initial learning rate for SGD. Default: 0.01.
+
+    Returns
+    -------
+    tuple[float, float, float, float, float, float]
+        A (train_loss, test_loss, test_acc, total_train_time,
+        total_eval_time, elapsed) tuple from the final epoch.
+
+    Example
+    -------
+    >>> results = training_loop(
+    ...     model, train_loader, test_loader,
+    ...     path="data/checkpoints/run.pt",
+    ...     model_name="ResNet18_pretrained",
+    ...     budget=0.1, epochs=30, lr=0.01,
+    ... )
+    """
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.SGD(
         model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4
@@ -172,24 +269,53 @@ def training_loop(
     )
 
 
-def run_pretrained(
+def run_baseline(
     train_loader: DataLoader,
     test_loader: DataLoader,
     budget: float,
+    pretrained: bool,
     epochs: int = 30,
     lr: float = 0.01,
 ) -> None:
-    print("\n-- ResNet18 (pretrained) --")
+    """
+    Train a ResNet-18 baseline and log the results.
+
+    Loads a ResNet-18 (pretrained or from scratch), runs the full
+    training loop, and writes results to the results log via
+    ResultsLogger.
+
+    Arguments
+    ---------
+    train_loader : DataLoader
+        DataLoader over the training subset.
+    test_loader : DataLoader
+        DataLoader over the test dataset.
+    budget : float
+        Annotation budget fraction, in range (0, 1].
+    pretrained : bool
+        If True, initializes with ImageNet weights. If False, trains
+        from scratch.
+    epochs : int
+        Number of training epochs. Default: 30.
+    lr : float
+        Initial learning rate. Default: 0.01.
+
+    Example
+    -------
+    >>> run_baseline(train_loader, test_loader, budget=0.1, pretrained=True)
+    """
+    label = "ResNet18_pretrained" if pretrained else "ResNet18_scratch"
+    print(f"\n-- ResNet18 ({'pretrained' if pretrained else 'scratch'}) --")
     model = try_compile(
-        prepare_model(load_resnet18(with_pretrained_weights=True))
+        prepare_model(load_resnet18(with_pretrained_weights=pretrained))
     )
     train_loss, test_loss, test_acc, train_time, eval_time, elapsed = (
         training_loop(
             model,
             train_loader,
             test_loader,
-            checkpoint_path("ResNet18_pretrained", budget),
-            "ResNet18_pretrained",
+            checkpoint_path(label, budget),
+            label,
             budget,
             epochs,
             lr,
@@ -197,7 +323,7 @@ def run_pretrained(
     )
     ResultsLogger.write_log(
         LogEntry(
-            model="ResNet18_pretrained",
+            model=label,
             budget=budget,
             n_epochs=epochs,
             train_loss=train_loss,
@@ -207,6 +333,45 @@ def run_pretrained(
             test_time=eval_time,
             total_elapsed_time=elapsed,
         )
+    )
+
+
+def run_pretrained(
+    train_loader: DataLoader,
+    test_loader: DataLoader,
+    budget: float,
+    epochs: int = 30,
+    lr: float = 0.01,
+) -> None:
+    """
+    Train a ResNet-18 initialized with ImageNet-pretrained weights.
+
+    Convenience wrapper around run_baseline(pretrained=True).
+
+    Arguments
+    ---------
+    train_loader : DataLoader
+        DataLoader over the training subset.
+    test_loader : DataLoader
+        DataLoader over the test dataset.
+    budget : float
+        Annotation budget fraction, in range (0, 1].
+    epochs : int
+        Number of training epochs. Default: 30.
+    lr : float
+        Initial learning rate. Default: 0.01.
+
+    Example
+    -------
+    >>> run_pretrained(train_loader, test_loader, budget=0.1)
+    """
+    run_baseline(
+        train_loader,
+        test_loader,
+        budget,
+        pretrained=True,
+        epochs=epochs,
+        lr=lr,
     )
 
 
@@ -217,32 +382,33 @@ def run_scratch(
     epochs: int = 30,
     lr: float = 0.01,
 ) -> None:
-    print("\n-- ResNet18 (scratch) --")
-    model = try_compile(
-        prepare_model(load_resnet18(with_pretrained_weights=False))
-    )
-    train_loss, test_loss, test_acc, train_time, eval_time, elapsed = (
-        training_loop(
-            model,
-            train_loader,
-            test_loader,
-            checkpoint_path("ResNet18_scratch", budget),
-            "ResNet18_scratch",
-            budget,
-            epochs,
-            lr,
-        )
-    )
-    ResultsLogger.write_log(
-        LogEntry(
-            model="ResNet18_scratch",
-            budget=budget,
-            n_epochs=epochs,
-            train_loss=train_loss,
-            test_loss=test_loss,
-            test_acc=test_acc,
-            train_time=train_time,
-            test_time=eval_time,
-            total_elapsed_time=elapsed,
-        )
+    """
+    Train a ResNet-18 initialized with random weights.
+
+    Convenience wrapper around run_baseline(pretrained=False).
+
+    Arguments
+    ---------
+    train_loader : DataLoader
+        DataLoader over the training subset.
+    test_loader : DataLoader
+        DataLoader over the test dataset.
+    budget : float
+        Annotation budget fraction, in range (0, 1].
+    epochs : int
+        Number of training epochs. Default: 30.
+    lr : float
+        Initial learning rate. Default: 0.01.
+
+    Example
+    -------
+    >>> run_scratch(train_loader, test_loader, budget=0.1)
+    """
+    run_baseline(
+        train_loader,
+        test_loader,
+        budget,
+        pretrained=False,
+        epochs=epochs,
+        lr=lr,
     )
