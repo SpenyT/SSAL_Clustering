@@ -353,9 +353,11 @@ class UMAPExtractor(FeatureExtractor):
         features, _, _ = self.extractor.extract(dataset, batch_size)
         if HAS_CUML:
             from cuml.manifold.umap import UMAP as _UMAP  # type: ignore
+
             self._use_cuml = True
         else:
             from umap import UMAP as _UMAP  # type: ignore
+
             self._use_cuml = False
         self._umap = _UMAP(n_components=self._n_components)
         self._umap.fit(features)
