@@ -10,10 +10,35 @@ from torch.utils.data import DataLoader
 
 from glob_config import VARIABLES_PATH, DATA_DIR, CIFAR_DIR
 
-# taken from https://forums.fast.ai/t/normalizing-your-dataset/49799
-
 
 def calculate_mean_std(loader: DataLoader) -> tuple[list[float], list[float]]:
+    """
+    Compute per-channel mean and standard deviation over a dataset.
+
+    Uses a single-pass online algorithm to accumulate pixel sums and
+    squared sums, avoiding the need to load the full dataset into memory.
+
+    References
+    ----------
+    Taken from: https://forums.fast.ai/t/normalizing-your-dataset/49799
+
+    Arguments
+    ---------
+    loader : DataLoader
+        DataLoader over the dataset to compute statistics for.
+        Images must be in (B, C, H, W) float format.
+
+    Returns
+    -------
+    tuple[list[float], list[float]]
+        A (mean, std) pair, each a list of 3 floats (one per channel).
+
+    Example
+    -------
+    >>> mean, std = calculate_mean_std(loader)
+    >>> mean
+    [0.5071, 0.4867, 0.4408]
+    """
     n = 0
     s1 = torch.zeros(3)
     s2 = torch.zeros(3)
@@ -28,6 +53,29 @@ def calculate_mean_std(loader: DataLoader) -> tuple[list[float], list[float]]:
 
 
 def load_data(data_name: str | list[str] | None = None) -> Any:
+    """
+    Load saved variables from the project pickle cache.
+
+    If data_name is None, returns the full cache dict. If a string,
+    returns the value for that key. If a list, returns a list of
+    values in the same order.
+
+    Arguments
+    ---------
+    data_name : str | list[str] | None
+        Key(s) to retrieve. If None, returns the entire cache.
+
+    Returns
+    -------
+    Any
+        The cached value(s), or an empty dict if the cache does not exist
+        or is corrupt.
+
+    Example
+    -------
+    >>> mean = load_data("mean")
+    >>> mean, std = load_data(["mean", "std"])
+    """
     if not os.path.exists(VARIABLES_PATH):
         return {}
     try:
@@ -44,6 +92,21 @@ def load_data(data_name: str | list[str] | None = None) -> Any:
 
 
 def save_data(new_data: dict[str, Any]) -> None:
+    """
+    Persist new key-value pairs to the project pickle cache.
+
+    Merges new_data into the existing cache, overwriting any keys
+    that already exist.
+
+    Arguments
+    ---------
+    new_data : dict[str, Any]
+        Key-value pairs to save.
+
+    Example
+    -------
+    >>> save_data({"mean": [0.507, 0.487, 0.441], "std": [0.267, 0.256, 0.276]})
+    """
     all_data = load_data()
     new_dict = all_data | new_data
     with open(VARIABLES_PATH, "wb") as f:
@@ -51,8 +114,25 @@ def save_data(new_data: dict[str, Any]) -> None:
 
 
 def calculate_save_mean_std() -> tuple[list[float], list[float]]:
-    stats_transform = transforms.Compose([transforms.ToTensor()])
+    """
+    Compute CIFAR-100 per-channel statistics and save them to cache.
 
+    Loads the CIFAR-100 training set with only a ToTensor transform,
+    computes mean and std via calculate_mean_std, and persists the
+    result to the pickle cache for future runs.
+
+    Returns
+    -------
+    tuple[list[float], list[float]]
+        A (mean, std) pair, each a list of 3 floats (one per channel).
+
+    Example
+    -------
+    >>> mean, std = calculate_save_mean_std()
+    >>> mean
+    [0.5071, 0.4867, 0.4408]
+    """
+    stats_transform = transforms.Compose([transforms.ToTensor()])
     stats_dataset = torchvision.datasets.CIFAR100(
         root=DATA_DIR,
         train=True,
@@ -68,6 +148,23 @@ def calculate_save_mean_std() -> tuple[list[float], list[float]]:
 
 
 def get_mean_std() -> tuple[list[float], list[float]]:
+    """
+    Return CIFAR-100 per-channel mean and std, computing if not cached.
+
+    Loads from the pickle cache if available, otherwise computes
+    and saves via calculate_save_mean_std.
+
+    Returns
+    -------
+    tuple[list[float], list[float]]
+        A (mean, std) pair, each a list of 3 floats (one per channel).
+
+    Example
+    -------
+    >>> mean, std = get_mean_std()
+    >>> std
+    [0.2675, 0.2565, 0.2761]
+    """
     loaded_mean = load_data("mean")
     if not loaded_mean:
         return calculate_save_mean_std()
@@ -85,6 +182,29 @@ def unnormalize(
     mean: list[float] | None = None,
     std: list[float] | None = None,
 ) -> Tensor:
+    """
+    Reverse normalization on an image tensor.
+
+    Arguments
+    ---------
+    img : Tensor
+        Normalized image tensor of shape (C, H, W).
+    mean : list[float], optional
+        Per-channel mean used during normalization. Loaded from
+        cache if None.
+    std : list[float], optional
+        Per-channel std used during normalization. Loaded from
+        cache if None.
+
+    Returns
+    -------
+    Tensor
+        Unnormalized image tensor of shape (C, H, W).
+
+    Example
+    -------
+    >>> img_display = unnormalize(img_tensor)
+    """
     if mean is None:
         mean = load_data("mean")
     if std is None:
