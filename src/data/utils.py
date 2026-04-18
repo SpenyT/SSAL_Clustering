@@ -105,7 +105,10 @@ def save_data(new_data: dict[str, Any]) -> None:
 
     Example
     -------
-    >>> save_data({"mean": [0.507, 0.487, 0.441], "std": [0.267, 0.256, 0.276]})
+    >>> save_data({
+    ...     "mean": [0.507, 0.487, 0.441],
+    ...     "std": [0.267, 0.256, 0.276]
+    ... })
     """
     all_data = load_data()
     new_dict = all_data | new_data
