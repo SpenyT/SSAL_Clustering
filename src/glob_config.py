@@ -7,8 +7,6 @@ import torch.backends.cudnn as cudnn
 from typing import Final
 
 # helpers
-
-
 def _get_current_file_number(results_dir: str) -> int:
     if not os.path.isdir(results_dir):
         return 0
@@ -22,7 +20,7 @@ def _get_current_file_number(results_dir: str) -> int:
 
 
 def _get_results_file_path(results_dir: str) -> str:
-    current = _get_current_file_number(RESULTS_DIR)
+    current = _get_current_file_number(results_dir)
     if current == 0:
         return f"{results_dir}/results_1.csv"
     return f"{results_dir}/results_{current + 1}.csv"

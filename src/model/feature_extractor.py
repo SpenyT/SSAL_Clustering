@@ -308,8 +308,6 @@ class PCAExtractor(FeatureExtractor):
         return self._n_components
 
 
-# found this: https://www.reddit.com/r/MachineLearning/comments/1k1nn8d/
-# Thought a 60x performance upgrade would be interesting
 class UMAPExtractor(FeatureExtractor):
     """
     Feature extractor that applies UMAP on top of a base extractor.
