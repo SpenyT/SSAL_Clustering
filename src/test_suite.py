@@ -1,13 +1,32 @@
 from data.dataset_type import IndexedCIFARSubset
 from data.dataset import get_indexed_datasets, create_loader
 from pipeline.resnet18_baseline import run_scratch, run_pretrained
-from pipeline.ssalc_pipeline import run_ssalc
 from glob_config import ANNOTATION_BUDGETS
 
 
 def run_budget_experiments(
     epochs: int = 30, lr: float = 0.01, batch_size: int = 128
 ) -> None:
+    """
+    Run all baseline and SSALC experiments across all annotation budgets.
+
+    For each budget in ANNOTATION_BUDGETS, creates a labeled training
+    subset, then runs ResNet-18 from scratch, ResNet-18 pretrained, and
+    the SSALC pipeline. Results are logged via ResultsLogger.
+
+    Arguments
+    ---------
+    epochs : int
+        Number of training epochs per experiment. Default: 30.
+    lr : float
+        Initial learning rate. Default: 0.01.
+    batch_size : int
+        Batch size for both train and test loaders. Default: 128.
+
+    Example
+    -------
+    >>> run_budget_experiments(epochs=30, lr=0.01, batch_size=128)
+    """
     train_dataset, test_dataset = get_indexed_datasets()
     test_loader = create_loader(
         test_dataset, batch_size=batch_size, shuffle=False
@@ -27,5 +46,3 @@ def run_budget_experiments(
         )
         run_scratch(train_loader, test_loader, budget, epochs, lr)
         run_pretrained(train_loader, test_loader, budget, epochs, lr)
-
-        run_ssalc(train_dataset, test_loader, budget, epochs, lr, batch_size)

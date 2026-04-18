@@ -5,6 +5,42 @@ from dataclasses import dataclass
 
 @dataclass(slots=True, frozen=True)
 class LogEntry:
+    """
+    Immutable record of a single experiment result.
+
+    Stores all metrics from one training run for serialization
+    to CSV via ResultsLogger.
+
+    Arguments
+    ---------
+    model : str
+        Name of the model (e.g. "ResNet18_pretrained").
+    budget : float
+        Annotation budget fraction used for this run.
+    n_epochs : int
+        Number of epochs trained.
+    train_loss : float
+        Final training loss.
+    test_loss : float
+        Final test loss.
+    test_acc : float
+        Final test accuracy, in range [0, 1].
+    train_time : float
+        Total training time in seconds.
+    test_time : float
+        Total evaluation time in seconds.
+    total_elapsed_time : float
+        Total wall-clock time for the run in seconds.
+
+    Example
+    -------
+    >>> entry = LogEntry(
+    ...     model="ResNet18_pretrained", budget=0.1, n_epochs=30,
+    ...     train_loss=0.5, test_loss=0.6, test_acc=0.82,
+    ...     train_time=120.0, test_time=10.0, total_elapsed_time=131.0,
+    ... )
+    """
+
     model: str
     budget: float
     n_epochs: int
@@ -17,6 +53,19 @@ class LogEntry:
 
     # could have used __iter__ too, but this will do
     def get_values(self):
+        """Return formatted field values for CSV serialization.
+
+        Returns
+        -------
+        list
+            All fields as a flat list with numeric values formatted
+            to fixed decimal places.
+
+        Example
+        -------
+        >>> entry.get_values()
+        ['ResNet18_pretrained', '0.10', 30, '0.500000', ...]
+        """
         return [
             self.model,
             f"{self.budget:.2f}",
@@ -31,6 +80,18 @@ class LogEntry:
 
 
 class ResultsLogger:
+    """
+    Static class for writing experiment results to a CSV file.
+
+    Must be initialized with init() before any calls to write_log().
+    Not intended to be instantiated since (methods are class methods).
+
+    Example
+    -------
+    >>> ResultsLogger.init("data/results/results_1.csv")
+    >>> ResultsLogger.write_log(entry)
+    """
+
     _path: str | None = None
 
     def __new__(cls):
@@ -38,6 +99,23 @@ class ResultsLogger:
 
     @classmethod
     def init(cls, path: str, append: bool = False) -> None:
+        """Initialize the results CSV file and set the output path.
+
+        Creates the output directory if it does not exist. If append
+        is False, overwrites any existing file and writes the header row.
+
+        Arguments
+        ---------
+        path : str
+            File path for the CSV output.
+        append : bool
+            If True, skips writing the header and appends to the existing
+            file. Default: False.
+
+        Example
+        -------
+        >>> ResultsLogger.init("data/results/results_1.csv", append=False)
+        """
         cls._path = path
         os.makedirs(os.path.dirname(path), exist_ok=True)
         if not append:
@@ -46,6 +124,17 @@ class ResultsLogger:
 
     @classmethod
     def write_log(cls, log: LogEntry) -> None:
+        """Append a LogEntry to the results CSV file.
+
+        Arguments
+        ---------
+        log : LogEntry
+            The experiment result to write.
+
+        Example
+        -------
+        >>> ResultsLogger.write_log(entry)
+        """
         if cls._path is None:
             raise RuntimeError(
                 "Call ResultsLogger.init() before writing logs."

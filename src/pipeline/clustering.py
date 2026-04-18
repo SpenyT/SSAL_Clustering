@@ -5,6 +5,28 @@ from glob_config import SEED
 
 
 class Clusterer:
+    """
+    K-Means based candidate selector for active learning.
+
+    Fits K-Means on extracted feature embeddings and selects the
+    samples closest to each cluster centroid as annotation candidates.
+    Distributes candidates uniformly across clusters to ensure diversity.
+
+    Arguments
+    ---------
+    n_clusters : int
+        Number of K-Means clusters. Should match the number of
+        classes in the dataset. Default: 100.
+    seed : int
+        Random seed for K-Means reproducibility. Default: SEED.
+
+    Example
+    -------
+    >>> clusterer = Clusterer(n_clusters=100)
+    >>> clusterer.fit(features, indices)
+    >>> candidates = clusterer.select_candidates(n=500)
+    """
+
     def __init__(self, n_clusters: int = 100, seed: int = SEED) -> None:
         self.n_clusters = n_clusters
         self._kmeans = KMeans(
@@ -14,12 +36,55 @@ class Clusterer:
         self._indices: np.ndarray | None = None
 
     def fit(self, features: np.ndarray, indices: np.ndarray) -> "Clusterer":
+        """
+        Fit K-Means on the provided feature embeddings.
+
+        Arguments
+        ---------
+        features : np.ndarray
+            Feature embeddings of shape (N, D).
+        indices : np.ndarray
+            Dataset indices corresponding to each embedding, shape (N,).
+
+        Returns
+        -------
+        Clusterer
+            The fitted clusterer (self), for method chaining.
+
+        Example
+        -------
+        >>> clusterer.fit(features, indices)
+        """
         self._kmeans.fit(features)
         self._features = features
         self._indices = indices
         return self
 
     def select_candidates(self, n: int) -> np.ndarray:
+        """
+        Select the n samples closest to their cluster centroids.
+
+        Distributes n selections as evenly as possible across all clusters,
+        with remainder samples assigned to the first clusters. Within each
+        cluster, selects the k samples with smallest Euclidean distance
+        to the centroid.
+
+        Arguments
+        ---------
+        n : int
+            Total number of candidates to select.
+
+        Returns
+        -------
+        np.ndarray
+            Dataset indices of selected candidates, shape (n,).
+
+        Example
+        -------
+        >>> candidates = clusterer.select_candidates(n=500)
+        >>> candidates.shape
+        (500,)
+        """
         if self._features is None or self._indices is None:
             raise RuntimeError("Call fit() first")
 
