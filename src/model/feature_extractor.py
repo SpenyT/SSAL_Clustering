@@ -197,7 +197,7 @@ class ResnetExtractor(FeatureExtractor):
 
     @property
     def output_dim(self) -> int:
-        return 512  # Resnet is always has 512 dimensions before final FC layer
+        return 512  # Resnet always has 512 dimensions before final FC layer
 
 
 class PCAExtractor(FeatureExtractor):
@@ -211,7 +211,7 @@ class PCAExtractor(FeatureExtractor):
 
     References
     ----------
-    - PCA implemented via full SVD on GPU:
+    PCA implemented via full SVD on GPU:
         https://github.com/gngdb/pytorch-pca/blob/main/pca.py
 
     Arguments
