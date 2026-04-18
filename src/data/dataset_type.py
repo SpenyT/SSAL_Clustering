@@ -6,14 +6,15 @@ import numpy as np
 from glob_config import SEED
 
 
-# wrapper for CIFAR100 that also returns the index of each sample. Easier for clustering
+# wrapper for CIFAR100 that also returns the index of each sample. Easier
+# for clustering
 class IndexedCIFAR100(Dataset):
-    def __init__( 
+    def __init__(
         self,
         root: str,
         train: bool,
         transform: transforms.Compose,
-        download: bool = True
+        download: bool = True,
     ) -> None:
         self._dataset = datasets.CIFAR100(
             root=root,
@@ -24,11 +25,12 @@ class IndexedCIFAR100(Dataset):
         self.classes: list[str] = self._dataset.classes
         self.targets: list[int] = self._dataset.targets
 
-    def __len__(self) -> int: 
+    def __len__(self) -> int:
         return len(self._dataset)
+
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, int, int]:
         return self._dataset[idx], idx
-    
+
 
 class IndexedCIFARSubset(IndexedCIFAR100):
     def __init__(
@@ -51,15 +53,24 @@ class IndexedCIFARSubset(IndexedCIFAR100):
             indices = []
             for c in range(len(self.classes)):
                 class_indices = np.where(targets == c)[0]
-                chosen = rng.choice(class_indices, size=n_per_class, replace=False)
+                chosen = rng.choice(
+                    class_indices, size=n_per_class, replace=False
+                )
                 indices.extend(chosen)
             self._indices = np.array(indices)
         else:
-            self._indices = rng.choice(len(self), size=n_labeled, replace=False)
+            self._indices = rng.choice(
+                len(self), size=n_labeled, replace=False
+            )
 
-    
     @classmethod
-    def from_dataset(cls, dataset: IndexedCIFAR100, budget: float, seed: int = SEED, uniform: bool = True) -> "IndexedCIFARSubset":
+    def from_dataset(
+        cls,
+        dataset: IndexedCIFAR100,
+        budget: float,
+        seed: int = SEED,
+        uniform: bool = True,
+    ) -> "IndexedCIFARSubset":
         instance = cls.__new__(cls)
         instance._dataset = dataset._dataset
         instance.classes = dataset.classes
@@ -72,12 +83,19 @@ class IndexedCIFARSubset(IndexedCIFAR100):
             indices = []
             for c in range(len(instance.classes)):
                 class_indices = np.where(targets == c)[0]
-                chosen = rng.choice(class_indices, size=n_per_class, replace=False)
+                chosen = rng.choice(
+                    class_indices, size=n_per_class, replace=False
+                )
                 indices.extend(chosen)
             instance._indices = np.array(indices)
         else:
-            instance._indices = rng.choice(len(dataset), size=n_labeled, replace=False)
+            instance._indices = rng.choice(
+                len(dataset), size=n_labeled, replace=False
+            )
         return instance
 
-    def __len__(self) -> int: return len(self._indices)
-    def __getitem__(self, idx: int) -> tuple[torch.Tensor, int, int]: return super().__getitem__(self._indices[idx])
+    def __len__(self) -> int:
+        return len(self._indices)
+
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, int, int]:
+        return super().__getitem__(self._indices[idx])

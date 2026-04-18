@@ -20,14 +20,26 @@ def set_seed(seed: int = SEED) -> None:
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="SSAL Clustering experiment runner")
-    parser.add_argument("--resume", action="store_true", help="Resume training from last checkpoint")
-    parser.add_argument("--append-log", action="store_true", help="Append to last results file when resuming (default: new file)")
+    parser = argparse.ArgumentParser(
+        description="SSAL Clustering experiment runner"
+    )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume training from last checkpoint",
+    )
+    parser.add_argument(
+        "--append-log",
+        action="store_true",
+        help="Append to last results file when resuming (default: new file)",
+    )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
-    warnings.filterwarnings("ignore", message=".*tuple.*subarray.*", category=DeprecationWarning) # was getting annoying
+    warnings.filterwarnings(
+        "ignore", message=".*tuple.*subarray.*", category=DeprecationWarning
+    )  # was getting annoying
     args = _parse_args()
     set_seed(SEED)
 

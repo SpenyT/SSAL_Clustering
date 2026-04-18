@@ -2,6 +2,7 @@ import csv
 import os
 from dataclasses import dataclass
 
+
 @dataclass(slots=True, frozen=True)
 class LogEntry:
     model: str
@@ -25,9 +26,8 @@ class LogEntry:
             f"{self.test_acc:.6f}",
             f"{self.train_time:.3f}",
             f"{self.test_time:.3f}",
-            f"{self.total_elapsed_time:.3f}"
+            f"{self.total_elapsed_time:.3f}",
         ]
-
 
 
 class ResultsLogger:
@@ -35,7 +35,7 @@ class ResultsLogger:
 
     def __new__(cls):
         raise TypeError("Use ResultsLogger as a static class.")
-    
+
     @classmethod
     def init(cls, path: str, append: bool = False) -> None:
         cls._path = path
@@ -47,6 +47,8 @@ class ResultsLogger:
     @classmethod
     def write_log(cls, log: LogEntry) -> None:
         if cls._path is None:
-            raise RuntimeError("Call ResultsLogger.init() before writing logs.")
+            raise RuntimeError(
+                "Call ResultsLogger.init() before writing logs."
+            )
         with open(cls._path, "a", newline="") as f:
             csv.writer(f).writerow(log.get_values())
