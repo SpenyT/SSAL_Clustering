@@ -1,31 +1,16 @@
-import torch
-from torch.utils.data import DataLoader
 from data.dataset_type import IndexedCIFARSubset
-from data.dataset import get_indexed_datasets
+from data.dataset import get_indexed_datasets, create_loader
 from pipeline.resnet18_baseline import run_scratch, run_pretrained
-from glob_config import (
-    ANNOTATION_BUDGETS,
-    NUM_WORKERS,
-    PIN_MEMORY,
-    SEED,
-    seed_worker,
-)
+from pipeline.ssalc_pipeline import run_ssalc
+from glob_config import ANNOTATION_BUDGETS
 
 
 def run_budget_experiments(
     epochs: int = 30, lr: float = 0.01, batch_size: int = 128
 ) -> None:
     train_dataset, test_dataset = get_indexed_datasets()
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=128,
-        shuffle=False,
-        num_workers=NUM_WORKERS,
-        pin_memory=PIN_MEMORY,
-        persistent_workers=True,
-        prefetch_factor=2 if NUM_WORKERS > 0 else None,
-        worker_init_fn=seed_worker,
-        generator=torch.Generator().manual_seed(SEED),
+    test_loader = create_loader(
+        test_dataset, batch_size=batch_size, shuffle=False
     )
 
     for budget in ANNOTATION_BUDGETS:
@@ -37,18 +22,10 @@ def run_budget_experiments(
             f" ({len(resnet_subset)} samples)"
         )
 
-        train_loader = DataLoader(
-            resnet_subset,
-            batch_size=batch_size,
-            shuffle=True,
-            num_workers=NUM_WORKERS,
-            pin_memory=PIN_MEMORY,
-            persistent_workers=True,
-            prefetch_factor=2 if NUM_WORKERS > 0 else None,
-            worker_init_fn=seed_worker,
-            generator=torch.Generator().manual_seed(SEED),
+        train_loader = create_loader(
+            resnet_subset, batch_size=batch_size, shuffle=True
         )
         run_scratch(train_loader, test_loader, budget, epochs, lr)
         run_pretrained(train_loader, test_loader, budget, epochs, lr)
 
-        # TODO: add SSALC
+        run_ssalc(train_dataset, test_loader, budget, epochs, lr, batch_size)
