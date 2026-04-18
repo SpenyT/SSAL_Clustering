@@ -349,13 +349,16 @@ class UMAPExtractor(FeatureExtractor):
         self.extractor = extractor
         self._n_components = n_components
         self._umap = None
+        self._use_cuml = False
 
     def fit(self, dataset: Dataset, batch_size: int = 256) -> "UMAPExtractor":
         features, _, _ = self.extractor.extract(dataset, batch_size)
         if HAS_CUML:
             from cuml.manifold.umap import UMAP as _UMAP  # type: ignore
+            self._use_cuml = True
         else:
             from umap import UMAP as _UMAP  # type: ignore
+            self._use_cuml = False
         self._umap = _UMAP(n_components=self._n_components)
         self._umap.fit(features)
         return self
@@ -366,7 +369,7 @@ class UMAPExtractor(FeatureExtractor):
         if self._umap is None:
             raise RuntimeError("Call fit() first (UMAPExtractor)")
         features, indices, labels = self.extractor.extract(dataset, batch_size)
-        if HAS_CUML:
+        if self._use_cuml:
             import cupy as cp  # type: ignore
 
             reduced = cp.asnumpy(self._umap.transform(cp.asarray(features)))
