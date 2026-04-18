@@ -45,7 +45,7 @@ if __name__ == "__main__":
 
     N_EPOCHS: Final[int] = 30
     LR: Final[float] = 0.01
-    BATCH_SIZE: Final[int] = 128
+    BATCH_SIZE: Final[int] = 256
 
     load_config(is_resume=args.resume, append_log=args.append_log)
     ResultsLogger.init(glob_config.RESULTS_PATH, append=glob_config.APPEND_LOG)

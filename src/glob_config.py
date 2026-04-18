@@ -1,6 +1,9 @@
 import os
 import re
+import random
+import numpy as np
 import torch
+import torch.backends.cudnn as cudnn
 from typing import Final
 
 # helpers
@@ -28,14 +31,22 @@ def _get_results_file_path(results_dir: str) -> str:
 # checks if gpu can use mixed precision
 # essentially automatically casts floats from 32bit to 16bit when possible
 # (by autocast)
-
-
 def _is_amp_supported() -> bool:
     if DEVICE.type == "cuda":
         return torch.cuda.get_device_capability()[0] >= 7
     if DEVICE.type == "mps":
         return True
     return False
+
+
+def _try_import_cuml() -> bool:
+    try:
+        import importlib
+
+        importlib.import_module("cuml")
+        return True
+    except ImportError:
+        return False
 
 
 # rand config
@@ -67,12 +78,25 @@ DEVICE: Final[str] = torch.device(
 )
 PIN_MEMORY: Final[bool] = DEVICE.type != "cpu"
 USE_AMP: Final[bool] = _is_amp_supported()
+HAS_CUML: Final[bool] = _try_import_cuml()
 
 # runtime config
 # change to whatever is best for you
 NUM_WORKERS: int = max(2, os.cpu_count() // 2)
 IS_RESUME: bool = False
 APPEND_LOG: bool = False
+
+
+if DEVICE.type == "cuda":
+    cudnn.benchmark = True
+
+# dataloader worker config
+
+
+def seed_worker(_worker_id: int) -> None:
+    worker_seed = torch.initial_seed() % 2**32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
 
 
 def load_config(

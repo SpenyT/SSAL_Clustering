@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from torch.amp import GradScaler, autocast
 from torch.utils.data import DataLoader
-from tqdm import tqdm
+from tqdm.auto import tqdm
 from model.resnet import load_resnet18
 from model.model_utils import prepare_model, try_compile
 from model.checkpoint import (
@@ -33,8 +33,10 @@ def train_epoch(
     model.train()
     total_loss = 0.0
     for (imgs, labels), _ in tqdm(loader, desc="Train", leave=False):
-        imgs, labels = imgs.to(DEVICE), labels.to(DEVICE)
-        optimizer.zero_grad()
+        imgs, labels = imgs.to(DEVICE, non_blocking=True), labels.to(
+            DEVICE, non_blocking=True
+        )
+        optimizer.zero_grad(set_to_none=True)
         if USE_AMP:
             with autocast(device_type=DEVICE.type):
                 loss = criterion(model(imgs), labels)
@@ -60,7 +62,9 @@ def evaluate(
     model.eval()
     total_loss, correct, n = 0.0, 0, 0
     for (imgs, labels), _ in tqdm(loader, desc="Eval", leave=False):
-        imgs, labels = imgs.to(DEVICE), labels.to(DEVICE)
+        imgs, labels = imgs.to(DEVICE, non_blocking=True), labels.to(
+            DEVICE, non_blocking=True
+        )
         if USE_AMP:
             with autocast(device_type=DEVICE.type):
                 logits = model(imgs)

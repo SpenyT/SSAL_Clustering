@@ -1,10 +1,15 @@
+import torch
 from torch.utils.data import DataLoader
 from data.dataset_type import IndexedCIFARSubset
 from data.dataset import get_indexed_datasets
 from pipeline.resnet18_baseline import run_scratch, run_pretrained
-
-
-from glob_config import ANNOTATION_BUDGETS, NUM_WORKERS, PIN_MEMORY
+from glob_config import (
+    ANNOTATION_BUDGETS,
+    NUM_WORKERS,
+    PIN_MEMORY,
+    SEED,
+    seed_worker,
+)
 
 
 def run_budget_experiments(
@@ -18,15 +23,18 @@ def run_budget_experiments(
         num_workers=NUM_WORKERS,
         pin_memory=PIN_MEMORY,
         persistent_workers=True,
+        prefetch_factor=2 if NUM_WORKERS > 0 else None,
+        worker_init_fn=seed_worker,
+        generator=torch.Generator().manual_seed(SEED),
     )
 
     for budget in ANNOTATION_BUDGETS:
         resnet_subset = IndexedCIFARSubset.from_dataset(
             train_dataset, budget=budget
         )
-        pct = int(budget * 100)
         print(
-            f"\nAnnotation Budget: {pct}%" f" ({len(resnet_subset)} samples)"
+            f"\nAnnotation Budget: {int(budget * 100)}%"
+            f" ({len(resnet_subset)} samples)"
         )
 
         train_loader = DataLoader(
@@ -36,6 +44,9 @@ def run_budget_experiments(
             num_workers=NUM_WORKERS,
             pin_memory=PIN_MEMORY,
             persistent_workers=True,
+            prefetch_factor=2 if NUM_WORKERS > 0 else None,
+            worker_init_fn=seed_worker,
+            generator=torch.Generator().manual_seed(SEED),
         )
         run_scratch(train_loader, test_loader, budget, epochs, lr)
         run_pretrained(train_loader, test_loader, budget, epochs, lr)

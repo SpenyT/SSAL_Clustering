@@ -16,12 +16,10 @@ def prepare_model(model: torch.nn.Module) -> torch.nn.Module:
 
 
 # torch.compile only works on 20 series or newer NVIDIA gpus
-
-
 def try_compile(model: nn.Module) -> nn.Module:
-    if DEVICE.type == "cuda" and torch.cuda.get_device_capability()[0] < 7:
+    if DEVICE.type != "cuda" or torch.cuda.get_device_capability()[0] < 7:
         return model
     try:
-        return torch.compile(model)
+        return torch.compile(model, mode="reduce-overhead")
     except Exception:
         return model

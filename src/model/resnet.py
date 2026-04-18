@@ -8,9 +8,15 @@ from torchvision.models import ResNet18_Weights
 
 
 def load_resnet18(
-    num_classes: int = 100, with_pretrained_weights: bool = True
+    num_classes: int = 100,
+    with_pretrained_weights: bool = True,
+    strip_fc: bool = False,
 ) -> nn.Module:
     weights = ResNet18_Weights.DEFAULT if with_pretrained_weights else None
     model = models.resnet18(weights=weights)
-    model.fc = nn.Linear(model.fc.in_features, num_classes)
+    model.fc = (
+        nn.Linear(model.fc.in_features, num_classes)
+        if not strip_fc
+        else nn.Identity()
+    )
     return model
