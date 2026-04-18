@@ -72,11 +72,12 @@ def get_mean_std() -> tuple[list[float], list[float]]:
     if not loaded_mean:
         return calculate_save_mean_std()
     else:
+        loaded_std = load_data("std")
         print(
-            "Loaded [mean:{mean}, std: {std}]"
+            f"Loaded [mean:{loaded_mean}, std: {loaded_std}]"
             f' from "{CIFAR_DIR}\\variables.pkl"'
         )
-        return (loaded_mean, load_data("std"))
+        return (loaded_mean, loaded_std)
 
 
 def unnormalize(
