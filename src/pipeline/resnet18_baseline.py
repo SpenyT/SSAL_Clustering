@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 from torch.amp import GradScaler, autocast
 from torch.utils.data import DataLoader
+from typing import Literal
 from tqdm.auto import tqdm
 from model.resnet import load_resnet18
 from model.model_utils import prepare_model, try_compile
@@ -15,6 +16,8 @@ from model.checkpoint import (
 import glob_config
 from glob_config import DEVICE, USE_AMP
 from visualize.results_logger import ResultsLogger, LogEntry
+
+Verbosity = Literal["full", "summary", "quiet"]
 
 # if gpu ends up using amp, scaler just scales back up to float32
 _scaler = (
@@ -29,6 +32,7 @@ def train_epoch(
     loader: DataLoader,
     optimizer: torch.optim.Optimizer,
     criterion: nn.Module,
+    leave: bool = False,
 ) -> float:
     """
     Run one training epoch over the dataset.
@@ -46,6 +50,8 @@ def train_epoch(
         Optimizer used to update model weights.
     criterion : nn.Module
         Loss function.
+    leave : bool
+        Whether the tqdm bar persists after completion. Default: False.
 
     Returns
     -------
@@ -60,7 +66,7 @@ def train_epoch(
     """
     model.train()
     total_loss = 0.0
-    for (imgs, labels), _ in tqdm(loader, desc="Train", leave=False):
+    for (imgs, labels), _ in tqdm(loader, desc="Train", leave=leave):
         imgs, labels = imgs.to(DEVICE, non_blocking=True), labels.to(
             DEVICE, non_blocking=True
         )
@@ -85,7 +91,7 @@ def train_epoch(
 
 @torch.no_grad()
 def evaluate(
-    model: nn.Module, loader: DataLoader, criterion: nn.Module
+    model: nn.Module, loader: DataLoader, criterion: nn.Module, leave: bool = False
 ) -> tuple[float, float]:
     """
     Evaluate model loss and accuracy on a dataset.
@@ -101,6 +107,8 @@ def evaluate(
         DataLoader over the evaluation dataset.
     criterion : nn.Module
         Loss function.
+    leave : bool
+        Whether the tqdm bar persists after completion. Default: False.
 
     Returns
     -------
@@ -116,7 +124,7 @@ def evaluate(
     """
     model.eval()
     total_loss, correct, n = 0.0, 0, 0
-    for (imgs, labels), _ in tqdm(loader, desc="Eval", leave=False):
+    for (imgs, labels), _ in tqdm(loader, desc="Eval", leave=leave):
         imgs, labels = imgs.to(DEVICE, non_blocking=True), labels.to(
             DEVICE, non_blocking=True
         )
@@ -141,6 +149,7 @@ def training_loop(
     budget: float,
     epochs: int = 30,
     lr: float = 0.01,
+    verbosity: Verbosity = "summary",
 ) -> tuple[float, float, float, float, float, float]:
     """
     Run the full training loop with checkpointing and evaluation.
@@ -168,6 +177,11 @@ def training_loop(
         Total number of training epochs. Default: 30.
     lr : float
         Initial learning rate for SGD. Default: 0.01.
+    verbosity : {"full", "summary", "quiet"}
+        Controls tqdm and print output. "full": all bars persist and
+        per-epoch lines are printed. "summary": bars are transient,
+        only the final result line is printed. "quiet": bars are
+        transient, nothing is printed. Default: "summary".
 
     Returns
     -------
@@ -214,25 +228,27 @@ def training_loop(
             )
             print(f"Resumed from epoch {start_epoch}/{epochs}")
 
+    leave = verbosity == "full"
     total_train_time = total_eval_time = 0.0
     t0 = time.time()
     for epoch in tqdm(
-        range(start_epoch + 1, epochs + 1), desc="Epochs", leave=False
+        range(start_epoch + 1, epochs + 1), desc="Epochs", leave=leave
     ):
         t_train = time.perf_counter()
-        train_loss = train_epoch(model, train_loader, optimizer, criterion)
+        train_loss = train_epoch(model, train_loader, optimizer, criterion, leave=leave)
         total_train_time += time.perf_counter() - t_train
 
         t_eval = time.perf_counter()
-        test_loss, test_acc = evaluate(model, test_loader, criterion)
+        test_loss, test_acc = evaluate(model, test_loader, criterion, leave=leave)
         total_eval_time += time.perf_counter() - t_eval
 
         scheduler.step()
-        tqdm.write(f"Epoch {
-            epoch:>3}/{epochs} | train_loss: {
-            train_loss:.4f} | test_loss: {
-            test_loss:.4f} | test_acc: {
-            test_acc:.4f}")
+        if verbosity == "full":
+            tqdm.write(f"Epoch {
+                epoch:>3}/{epochs} | train_loss: {
+                train_loss:.4f} | test_loss: {
+                test_loss:.4f} | test_acc: {
+                test_acc:.4f}")
         save_checkpoint(
             path,
             epoch,
@@ -250,15 +266,16 @@ def training_loop(
     avg_batch_time = (
         elapsed / (completed * n_batches) if completed > 0 else 0.0
     )
-    print(
-        f"Done | time: {elapsed:.1f}s | avg_batch: {avg_batch_time:.3f}s | "
-        f"samples: {n_samples} | batch_size: {batch_size} | "
-        f"batches/epoch: {n_batches} | "
-        f"train_loss: {
-            train_loss:.4f} | test_loss: {
-            test_loss:.4f} | test_acc: {
-            test_acc:.4f}"
-    )
+    if verbosity != "quiet":
+        print(
+            f"Done | time: {elapsed:.1f}s | avg_batch: {avg_batch_time:.3f}s | "
+            f"samples: {n_samples} | batch_size: {batch_size} | "
+            f"batches/epoch: {n_batches} | "
+            f"train_loss: {
+                train_loss:.4f} | test_loss: {
+                test_loss:.4f} | test_acc: {
+                test_acc:.4f}"
+        )
     return (
         train_loss,
         test_loss,
@@ -276,6 +293,7 @@ def run_baseline(
     pretrained: bool,
     epochs: int = 30,
     lr: float = 0.01,
+    verbosity: Verbosity = "summary",
 ) -> None:
     """
     Train a ResNet-18 baseline and log the results.
@@ -299,6 +317,11 @@ def run_baseline(
         Number of training epochs. Default: 30.
     lr : float
         Initial learning rate. Default: 0.01.
+    verbosity : {"full", "summary", "quiet"}
+        Controls tqdm and print output. "full": all bars persist and
+        per-epoch lines are printed. "summary": bars are transient,
+        only the final result line is printed. "quiet": bars are
+        transient, nothing is printed. Default: "summary".
 
     Example
     -------
@@ -319,6 +342,7 @@ def run_baseline(
             budget,
             epochs,
             lr,
+            verbosity,
         )
     )
     ResultsLogger.write_log(
@@ -342,6 +366,7 @@ def run_pretrained(
     budget: float,
     epochs: int = 30,
     lr: float = 0.01,
+    verbosity: Verbosity = "summary",
 ) -> None:
     """
     Train a ResNet-18 initialized with ImageNet-pretrained weights.
@@ -360,6 +385,11 @@ def run_pretrained(
         Number of training epochs. Default: 30.
     lr : float
         Initial learning rate. Default: 0.01.
+    verbosity : {"full", "summary", "quiet"}
+        Controls tqdm and print output. "full": all bars persist and
+        per-epoch lines are printed. "summary": bars are transient,
+        only the final result line is printed. "quiet": bars are
+        transient, nothing is printed. Default: "summary".
 
     Example
     -------
@@ -372,6 +402,7 @@ def run_pretrained(
         pretrained=True,
         epochs=epochs,
         lr=lr,
+        verbosity=verbosity,
     )
 
 
@@ -381,6 +412,7 @@ def run_scratch(
     budget: float,
     epochs: int = 30,
     lr: float = 0.01,
+    verbosity: Verbosity = "summary",
 ) -> None:
     """
     Train a ResNet-18 initialized with random weights.
@@ -399,6 +431,11 @@ def run_scratch(
         Number of training epochs. Default: 30.
     lr : float
         Initial learning rate. Default: 0.01.
+    verbosity : {"full", "summary", "quiet"}
+        Controls tqdm and print output. "full": all bars persist and
+        per-epoch lines are printed. "summary": bars are transient,
+        only the final result line is printed. "quiet": bars are
+        transient, nothing is printed. Default: "summary".
 
     Example
     -------
@@ -411,4 +448,5 @@ def run_scratch(
         pretrained=False,
         epochs=epochs,
         lr=lr,
+        verbosity=verbosity,
     )

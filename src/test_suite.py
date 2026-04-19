@@ -1,12 +1,13 @@
 from data.dataset_type import IndexedCIFARSubset
 from data.dataset import create_loader, get_indexed_datasets
-from pipeline.resnet18_baseline import run_scratch, run_pretrained
+from pipeline.resnet18_baseline import run_scratch, run_pretrained, Verbosity
 from glob_config import ANNOTATION_BUDGETS
 
 def run_resnet_budget_experiment(
     epochs: int = 30,
     lr: float = 0.01,
     batch_size: int = 128,
+    verbosity: Verbosity = "summary",
 ) -> None:
     """
     Run all baseline and SSALC experiments across all annotation budgets.
@@ -22,10 +23,16 @@ def run_resnet_budget_experiment(
         Initial learning rate. Default: 0.01.
     batch_size : int
         Batch size for train and test loaders. Default: 128.
+    verbosity : {"full", "summary", "quiet"}
+        Controls tqdm and print output. "full": all bars persist and
+        per-epoch lines are printed. "summary": bars are transient,
+        only the final result line is printed. "quiet": bars are
+        transient, nothing is printed. Default: "summary".
 
     Example
     -------
     >>> run_resnet_budget_experiment(epochs=30)
+    >>> run_resnet_budget_experiment(epochs=30, verbosity="full")
     """
 
     train_dataset, test_dataset = get_indexed_datasets()
@@ -44,5 +51,5 @@ def run_resnet_budget_experiment(
         train_loader = create_loader(
             resnet_subset, batch_size=batch_size, shuffle=True
         )
-        run_scratch(train_loader, test_loader, budget, epochs, lr)
-        run_pretrained(train_loader, test_loader, budget, epochs, lr)
+        run_scratch(train_loader, test_loader, budget, epochs, lr, verbosity)
+        run_pretrained(train_loader, test_loader, budget, epochs, lr, verbosity)
