@@ -30,12 +30,9 @@ def prepare_model(model: torch.nn.Module) -> torch.nn.Module:
     if N_GPUS > 1:
         print(f"Using {N_GPUS} GPUs")
         model = torch.nn.DataParallel(model)
-    else:
-        print(f"Using device: {DEVICE}")
     return model.to(DEVICE)
 
 
-# torch.compile only works on 20 series or newer NVIDIA gpus
 def try_compile(model: nn.Module) -> nn.Module:
     """
     Attempt to compile the model with torch.compile for faster inference.
