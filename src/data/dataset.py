@@ -6,7 +6,7 @@ from torchvision.datasets import CIFAR100
 from torch.utils.data import DataLoader, Dataset
 
 from data.dataset_type import IndexedCIFAR100
-from data.utils import DATA_DIR, CIFAR_DIR, get_mean_std
+from data.data_utils import DATA_DIR, CIFAR_DIR, get_mean_std
 from glob_config import NUM_WORKERS, PIN_MEMORY, SEED, seed_worker
 
 
