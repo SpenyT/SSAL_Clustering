@@ -25,7 +25,7 @@ def run_resnet_budget_experiment(
 
     Example
     -------
-    >>> run_budget_experiments(epochs=30)
+    >>> run_resnet_budget_experiment(epochs=30)
     """
 
     train_dataset, test_dataset = get_indexed_datasets()
