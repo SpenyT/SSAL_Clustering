@@ -1,6 +1,10 @@
 import torch
 import torch.nn as nn
+from typing import Literal, Final, get_args
 from glob_config import DEVICE, N_GPUS
+
+ModelName = Literal["ResNet18_scratch", "ResNet18_pretrained", "SSALC"]
+MODELS: Final[tuple[ModelName, ...]] = get_args(ModelName)
 
 # I might be overengineering but I'm assuming you might like
 # the convenience of having the possibility of using multiple GPUs

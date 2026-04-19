@@ -15,6 +15,7 @@ from model.checkpoint import (
 )
 import glob_config
 from glob_config import DEVICE, USE_AMP
+from model.model_utils import ModelName
 from visualize.results_logger import ResultsLogger, LogEntry
 
 Verbosity = Literal["full", "summary", "quiet"]
@@ -145,7 +146,7 @@ def training_loop(
     train_loader: DataLoader,
     test_loader: DataLoader,
     path: str,
-    model_name: str,
+    model_name: ModelName,
     budget: float,
     epochs: int = 30,
     lr: float = 0.01,

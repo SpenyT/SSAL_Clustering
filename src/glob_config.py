@@ -177,7 +177,6 @@ RESULTS_PATH: str = f"{RESULTS_DIR}/results_{
 
 # data definitions config
 ANNOTATION_BUDGETS: Final[list[float]] = [0.05, 0.1, 0.2, 0.5, 1.0]
-MODELS: Final[list[str]] = ["ResNet18_scratch", "ResNet18_pretrained", "SSALC"]
 
 # device config
 N_GPUS: Final[int] = torch.cuda.device_count()

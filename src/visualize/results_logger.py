@@ -1,6 +1,7 @@
 import csv
 import os
 from dataclasses import dataclass
+from model.model_utils import ModelName
 
 
 @dataclass(slots=True, frozen=True)
@@ -41,7 +42,7 @@ class LogEntry:
     ... )
     """
 
-    model: str
+    model: ModelName
     budget: float
     epoch: int
     train_loss: float
