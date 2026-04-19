@@ -187,7 +187,7 @@ USE_AMP: Final[bool] = _is_amp_supported()
 HAS_CUML: Final[bool] = _try_import_cuml()
 
 # runtime config
-NUM_WORKERS: int = max(2, os.cpu_count() // 2)
+NUM_WORKERS: int = 0 if os.name == "nt" else max(2, os.cpu_count() // 2)
 IS_RESUME: bool = False
 APPEND_LOG: bool = False
 
