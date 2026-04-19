@@ -135,6 +135,7 @@ def calculate_save_mean_std() -> tuple[list[float], list[float]]:
     >>> mean
     [0.5071, 0.4867, 0.4408]
     """
+    print("Calculating CIFAR100 Dataset's Mean and STD...")
     stats_transform = transforms.Compose([transforms.ToTensor()])
     stats_dataset = torchvision.datasets.CIFAR100(
         root=DATA_DIR,
