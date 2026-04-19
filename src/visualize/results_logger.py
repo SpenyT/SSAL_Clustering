@@ -17,33 +17,33 @@ class LogEntry:
         Name of the model (e.g. "ResNet18_pretrained").
     budget : float
         Annotation budget fraction used for this run.
-    n_epochs : int
-        Number of epochs trained.
+    epoch : int
+        Current epoch number (one row per epoch).
     train_loss : float
-        Final training loss.
+        Training loss for this epoch.
     test_loss : float
-        Final test loss.
+        Test loss for this epoch.
     test_acc : float
-        Final test accuracy, in range [0, 1].
+        Test accuracy for this epoch, in range [0, 1].
     train_time : float
-        Total training time in seconds.
+        Training time for this epoch in seconds.
     test_time : float
-        Total evaluation time in seconds.
+        Evaluation time for this epoch in seconds.
     total_elapsed_time : float
-        Total wall-clock time for the run in seconds.
+        Cumulative wall-clock time since training started, in seconds.
 
     Example
     -------
     >>> entry = LogEntry(
-    ...     model="ResNet18_pretrained", budget=0.1, n_epochs=30,
+    ...     model="ResNet18_pretrained", budget=0.1, epoch=5,
     ...     train_loss=0.5, test_loss=0.6, test_acc=0.82,
-    ...     train_time=120.0, test_time=10.0, total_elapsed_time=131.0,
+    ...     train_time=4.2, test_time=0.8, total_elapsed_time=25.1,
     ... )
     """
 
     model: str
     budget: float
-    n_epochs: int
+    epoch: int
     train_loss: float
     test_loss: float
     test_acc: float
@@ -69,7 +69,7 @@ class LogEntry:
         return [
             self.model,
             f"{self.budget:.2f}",
-            self.n_epochs,
+            self.epoch,
             f"{self.train_loss:.6f}",
             f"{self.test_loss:.6f}",
             f"{self.test_acc:.6f}",

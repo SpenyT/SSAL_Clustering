@@ -238,14 +238,28 @@ def training_loop(
     ):
         t_train = time.perf_counter()
         train_loss = train_epoch(model, train_loader, optimizer, criterion, leave=leave)
-        total_train_time += time.perf_counter() - t_train
+        epoch_train_time = time.perf_counter() - t_train
+        total_train_time += epoch_train_time
 
         t_eval = time.perf_counter()
         test_loss, test_acc = evaluate(model, test_loader, criterion, leave=leave)
-        total_eval_time += time.perf_counter() - t_eval
+        epoch_eval_time = time.perf_counter() - t_eval
+        total_eval_time += epoch_eval_time
 
         scheduler.step()
+        elapsed = time.time() - t0
         history.append({"epoch": epoch, "train_loss": train_loss, "test_loss": test_loss, "test_acc": test_acc})
+        ResultsLogger.write_log(LogEntry(
+            model=model_name,
+            budget=budget,
+            epoch=epoch,
+            train_loss=train_loss,
+            test_loss=test_loss,
+            test_acc=test_acc,
+            train_time=epoch_train_time,
+            test_time=epoch_eval_time,
+            total_elapsed_time=elapsed,
+        ))
         if verbosity == "full":
             tqdm.write(f"Epoch {
                 epoch:>3}/{epochs} | train_loss: {
@@ -336,31 +350,16 @@ def run_baseline(
     model = try_compile(
         prepare_model(load_resnet18(with_pretrained_weights=pretrained))
     )
-    train_loss, test_loss, test_acc, train_time, eval_time, elapsed = (
-        training_loop(
-            model,
-            train_loader,
-            test_loader,
-            checkpoint_path(label, budget),
-            label,
-            budget,
-            epochs,
-            lr,
-            verbosity,
-        )
-    )
-    ResultsLogger.write_log(
-        LogEntry(
-            model=label,
-            budget=budget,
-            n_epochs=epochs,
-            train_loss=train_loss,
-            test_loss=test_loss,
-            test_acc=test_acc,
-            train_time=train_time,
-            test_time=eval_time,
-            total_elapsed_time=elapsed,
-        )
+    training_loop(
+        model,
+        train_loader,
+        test_loader,
+        checkpoint_path(label, budget),
+        label,
+        budget,
+        epochs,
+        lr,
+        verbosity,
     )
 
 
