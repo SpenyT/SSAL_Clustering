@@ -37,6 +37,7 @@ def save_checkpoint(
     train_loss: float,
     test_loss: float,
     test_acc: float,
+    history: list[dict],
 ) -> None:
     os.makedirs(os.path.dirname(path), exist_ok=True)
     torch.save(
@@ -51,6 +52,7 @@ def save_checkpoint(
             "train_loss": train_loss,
             "test_loss": test_loss,
             "test_acc": test_acc,
+            "history": history,
         },
         path,
     )

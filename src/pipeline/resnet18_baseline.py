@@ -212,6 +212,7 @@ def training_loop(
 
     train_loss = test_loss = test_acc = 0.0
     start_epoch = 0
+    history: list[dict] = []
     if glob_config.IS_RESUME:
         latest = find_latest_checkpoint(model_name, budget)
         ckpt = (
@@ -226,6 +227,7 @@ def training_loop(
                 ckpt["test_loss"],
                 ckpt["test_acc"],
             )
+            history = ckpt.get("history", [])
             print(f"Resumed from epoch {start_epoch}/{epochs}")
 
     leave = verbosity == "full"
@@ -243,6 +245,7 @@ def training_loop(
         total_eval_time += time.perf_counter() - t_eval
 
         scheduler.step()
+        history.append({"epoch": epoch, "train_loss": train_loss, "test_loss": test_loss, "test_acc": test_acc})
         if verbosity == "full":
             tqdm.write(f"Epoch {
                 epoch:>3}/{epochs} | train_loss: {
@@ -259,6 +262,7 @@ def training_loop(
             train_loss,
             test_loss,
             test_acc,
+            history,
         )
 
     elapsed = time.time() - t0
