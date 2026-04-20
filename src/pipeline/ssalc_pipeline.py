@@ -319,31 +319,35 @@ def run_ssalc(
     print(f"  AL done in {t_al:.1f}s | final labeled: {pool.n_labeled}")
 
     # I use my pseudo-lables to refine my low-confidence (impure) clusters her
-    unlabeled_features, unlabeled_indices, _ = extractor.extract(
-        pool.unlabeled_dataset, batch_size
-    )
-    labeled_features, labeled_indices, _ = extractor.extract(
-        pool.labeled_dataset, batch_size
-    )
-    all_features = np.concatenate([unlabeled_features, labeled_features])
-    all_indices = np.concatenate([unlabeled_indices, labeled_indices])
-    labeled_targets_dict = {
-        int(i): int(all_targets[i]) for i in labeled_indices
-    }
-    final_result = clusterer.fit(
-        all_features, all_indices, labeled_targets=labeled_targets_dict
-    )
+    # if budget is 100%, just use the entire dataset
+    if pool.n_unlabeled > 0:
+        unlabeled_features, unlabeled_indices, _ = extractor.extract(
+            pool.unlabeled_dataset, batch_size
+        )
+        labeled_features, labeled_indices, _ = extractor.extract(
+            pool.labeled_dataset, batch_size
+        )
+        all_features = np.concatenate([unlabeled_features, labeled_features])
+        all_indices = np.concatenate([unlabeled_indices, labeled_indices])
+        labeled_targets_dict = {
+            int(i): int(all_targets[i]) for i in labeled_indices
+        }
+        final_result = clusterer.fit(
+            all_features, all_indices, labeled_targets=labeled_targets_dict
+        )
 
-    pseudo_labels = _build_pseudo_labels(
-        final_result, all_targets, set(labeled_indices.tolist())
-    )
-    print(
-        f"  Pseudo-labeled: {len(pseudo_labels)} unlabeled samples "
-        f"({len(pseudo_labels) / pool.n_unlabeled:.1%} of unlabeled pool)"
-    )
-
-    pseudo_view = PseudoLabeledView(train_dataset, pseudo_labels)
-    train_dataset_combined = ConcatDataset([pool.labeled_dataset, pseudo_view])
+        pseudo_labels = _build_pseudo_labels(
+            final_result, all_targets, set(labeled_indices.tolist())
+        )
+        print(
+            f"  Pseudo-labeled: {len(pseudo_labels)} unlabeled samples "
+            f"({len(pseudo_labels) / pool.n_unlabeled:.1%} of unlabeled pool)"
+        )
+        pseudo_view = PseudoLabeledView(train_dataset, pseudo_labels)
+        train_dataset_combined = ConcatDataset([pool.labeled_dataset, pseudo_view])
+    else:
+        print("  Unlabeled pool exhausted — skipping pseudo-label refinement")
+        train_dataset_combined = pool.labeled_dataset
 
     model = try_compile(
         prepare_model(load_resnet18(with_pretrained_weights=False))
