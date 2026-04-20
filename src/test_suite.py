@@ -1,6 +1,7 @@
 from data.dataset_type import IndexedCIFARSubset
 from data.dataset import create_loader, get_indexed_datasets
 from pipeline.resnet18_baseline import run_scratch, run_pretrained, Verbosity
+from pipeline.ssalc_pipeline import run_ssalc
 from glob_config import ANNOTATION_BUDGETS
 
 
@@ -55,4 +56,50 @@ def run_resnet_budget_experiment(
         run_scratch(train_loader, test_loader, budget, epochs, lr, verbosity)
         run_pretrained(
             train_loader, test_loader, budget, epochs, lr, verbosity
+        )
+
+
+def run_ssalc_budget_experiment(
+    epochs: int = 30,
+    lr: float = 0.01,
+    batch_size: int = 128,
+) -> None:
+    """
+    Run SSALC across all annotation budgets.
+
+    For each budget in ANNOTATION_BUDGETS, runs the full SSALC pipeline:
+    active learning rounds, pseudo-labeling, and ResNet-18 training.
+    Results are logged via ResultsLogger.
+
+    Arguments
+    ---------
+    epochs : int
+        Number of training epochs per experiment. Default: 30.
+    lr : float
+        Initial learning rate. Default: 0.01.
+    batch_size : int
+        Batch size for train, test, and feature extraction loaders. Default: 128.
+
+    Returns
+    -------
+    None
+        Results are written to the log via ResultsLogger and checkpoints
+        are saved for each budget.
+
+    Example
+    -------
+    >>> run_ssalc_budget_experiment(epochs=30)
+    """
+    train_dataset, test_dataset = get_indexed_datasets()
+    test_loader = create_loader(test_dataset, batch_size=batch_size, shuffle=False)
+
+    for budget in ANNOTATION_BUDGETS:
+        print(f"\nAnnotation Budget: {int(budget * 100)}% ({int(budget * 50000)} samples)")
+        run_ssalc(
+            train_dataset=train_dataset,
+            test_loader=test_loader,
+            budget=budget,
+            epochs=epochs,
+            lr=lr,
+            batch_size=batch_size,
         )

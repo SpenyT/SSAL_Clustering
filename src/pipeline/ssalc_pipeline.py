@@ -28,8 +28,8 @@ from pipeline.clustering import (
     HierarchicalKMeansClusterer,
 )
 from pipeline.query_strategy import MixedQueryStrategy, QueryStrategy
+from model.model_utils import ModelName
 from pipeline.resnet18_baseline import training_loop
-from visualize.results_logger import LogEntry, ResultsLogger
 
 # NOTE: I used tune.py (GridSearch) for best startegies and hyperparams
 _N_AL_ROUNDS = 5 # number of active learning query rounds
@@ -201,7 +201,7 @@ def run_ssalc(
     train_dataset: IndexedCIFAR100,
     test_loader: DataLoader,
     budget: float,
-    model_name: str = "SSALC",
+    model_name: ModelName = "SSALC",
     epochs: int = 30,
     lr: float = 0.01,
     batch_size: int = 128,
@@ -350,29 +350,13 @@ def run_ssalc(
     )
     train_loader = _make_train_loader(train_dataset_combined, batch_size)
 
-    train_loss, test_loss, test_acc, train_time, eval_time, elapsed = (
-        training_loop(
-            model,
-            train_loader,
-            test_loader,
-            checkpoint_path(model_name, budget),
-            model_name,
-            budget,
-            epochs,
-            lr,
-        )
-    )
-
-    ResultsLogger.write_log(
-        LogEntry(
-            model=model_name,
-            budget=budget,
-            n_epochs=epochs,
-            train_loss=train_loss,
-            test_loss=test_loss,
-            test_acc=test_acc,
-            train_time=train_time,
-            test_time=eval_time,
-            total_elapsed_time=elapsed + t_al,
-        )
+    training_loop(
+        model,
+        train_loader,
+        test_loader,
+        checkpoint_path(model_name, budget),
+        model_name,
+        budget,
+        epochs,
+        lr,
     )
