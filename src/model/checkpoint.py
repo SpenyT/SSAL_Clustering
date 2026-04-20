@@ -197,7 +197,10 @@ def load_checkpoint(
         return None
     try:
         ckpt = torch.load(path, map_location=DEVICE, weights_only=False)
-        model.load_state_dict(ckpt["model_state_dict"])
+        state = ckpt["model_state_dict"]
+        if any(k.startswith("_orig_mod.") for k in state):
+            state = {k.removeprefix("_orig_mod."): v for k, v in state.items()}
+        model.load_state_dict(state)
         optimizer.load_state_dict(ckpt["optimizer_state_dict"])
         scheduler.load_state_dict(ckpt["scheduler_state_dict"])
         if scaler is not None and ckpt.get("scaler_state_dict") is not None:
@@ -268,5 +271,10 @@ def load_model(model_name: ModelName, budget: float) -> nn.Module:
 
     model = _registry[model_name]()
     ckpt = torch.load(path, map_location=DEVICE, weights_only=False)
-    model.load_state_dict(ckpt["model_state_dict"])
+    state = ckpt["model_state_dict"]
+    # Checkpoints saved from torch.compile()'d models have keys prefixed
+    # with "_orig_mod." — strip them so the plain model can load them.
+    if any(k.startswith("_orig_mod.") for k in state):
+        state = {k.removeprefix("_orig_mod."): v for k, v in state.items()}
+    model.load_state_dict(state)
     return model.to(DEVICE).eval()
