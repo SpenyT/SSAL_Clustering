@@ -1,8 +1,11 @@
+import os
+
 from data.dataset_type import IndexedCIFARSubset
 from data.dataset import create_loader, get_indexed_datasets
 from pipeline.resnet18_baseline import run_scratch, run_pretrained, Verbosity
 from pipeline.ssalc_pipeline import run_ssalc
 from glob_config import ANNOTATION_BUDGETS
+from model.checkpoint import checkpoint_path
 
 
 def run_resnet_budget_experiment(
@@ -63,6 +66,7 @@ def run_ssalc_budget_experiment(
     epochs: int = 30,
     lr: float = 0.01,
     batch_size: int = 128,
+    skip_completed: bool = False,
 ) -> None:
     """
     Run SSALC across all annotation budgets.
@@ -79,6 +83,9 @@ def run_ssalc_budget_experiment(
         Initial learning rate. Default: 0.01.
     batch_size : int
         Batch size for train, test, and feature extraction loaders. Default: 128.
+    skip_completed : bool
+        If True, skip any budget whose checkpoint file already exists on disk.
+        Useful for resuming a interrupted Colab run. Default: False.
 
     Returns
     -------
@@ -89,12 +96,16 @@ def run_ssalc_budget_experiment(
     Example
     -------
     >>> run_ssalc_budget_experiment(epochs=30)
+    >>> run_ssalc_budget_experiment(epochs=30, skip_completed=True)
     """
     train_dataset, test_dataset = get_indexed_datasets()
     test_loader = create_loader(test_dataset, batch_size=batch_size, shuffle=False)
 
     for budget in ANNOTATION_BUDGETS:
         print(f"\nAnnotation Budget: {int(budget * 100)}% ({int(budget * 50000)} samples)")
+        if skip_completed and os.path.exists(checkpoint_path("SSALC", budget)):
+            print(f"  Skipping — checkpoint already exists.")
+            continue
         run_ssalc(
             train_dataset=train_dataset,
             test_loader=test_loader,
