@@ -7,9 +7,15 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import confusion_matrix
 from torch.utils.data import DataLoader
-from glob_config import DEVICE, CIFAR_DIR, PLOTS_DIR
+from glob_config import DEVICE, CIFAR_DIR, PLOTS_DIR, HAS_CUML, SEED
+
+if HAS_CUML:
+    from cuml.decomposition import PCA
+else:
+    from sklearn.decomposition import PCA
 from model.model_utils import ModelName
 from model.checkpoint import load_model
+from pipeline.clustering import ClusterResult
 
 sns.set_theme(style="white")
 
@@ -210,6 +216,107 @@ def plot_per_class_accuracy(
     ax.legend()
     plt.tight_layout()
     _save(fig, save_dir, "per_class_accuracy")
+    plt.show()
+
+# references:
+#   - https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html
+#   - https://scikit-learn.org/stable/auto_examples/cluster/plot_kmeans_digits.html
+def _run_pca(features: np.ndarray, n_components: int) -> np.ndarray:
+    norms = np.linalg.norm(features, axis=1, keepdims=True)
+    data_scaled = features / np.maximum(norms, 1e-8)
+    reduced_data = PCA(n_components=n_components, random_state=SEED).fit_transform(data_scaled)
+    norms2 = np.linalg.norm(reduced_data, axis=1, keepdims=True)
+    return reduced_data / np.maximum(norms2, 1e-8)
+
+# references:
+#   - https://scikit-learn.org/stable/auto_examples/cluster/plot_kmeans_digits.html
+def plot_cluster_result(
+    result: ClusterResult,
+    targets: np.ndarray | None = None,
+    save_dir: str | None = None,
+) -> None:
+    """
+    Visualize a ClusterResult with PCA projections and cluster size distribution.
+
+    Produces up to three plots:
+    - PCA coloured by cluster label
+    - PCA coloured by true class (if targets provided)
+    - Cluster size distribution bar chart
+
+    Also prints cluster count, mean cluster size, and purity summary
+    if targets are provided.
+
+    Arguments
+    ---------
+    result : ClusterResult
+        Output of a clustering operation (features, labels, centroids).
+    targets : np.ndarray | None
+        Ground-truth class labels (shape N,) aligned with result.indices.
+        If provided, enables the class-coloured PCA and purity printout.
+    save_dir : str | None
+        Directory to save plot PNGs. Default: None (no save).
+
+    Example
+    -------
+    >>> plot_cluster_result(cluster_result, targets=all_targets)
+    """
+    n_clusters = int(result.labels.max()) + 1
+    sizes = np.bincount(result.labels[result.labels >= 0], minlength=n_clusters)
+    print(f"Clusters: {n_clusters} | mean size: {sizes.mean():.1f} | "
+          f"min: {sizes.min()} | max: {sizes.max()}")
+
+    if targets is not None:
+        cluster_targets = targets[result.indices]
+        purities = []
+        for c in range(n_clusters):
+            mask = result.labels == c
+            if mask.sum() == 0:
+                continue
+            counts = np.bincount(cluster_targets[mask].astype(int))
+            purities.append(counts.max() / mask.sum())
+        print(f"Mean cluster purity: {np.mean(purities):.4f} | "
+              f"pure (>0.9): {sum(p > 0.9 for p in purities)}/{n_clusters}")
+
+    reduced_data = _run_pca(result.features, n_components=2)
+
+    fig, ax = plt.subplots(figsize=(10, 8))
+    scatter = ax.scatter(
+        reduced_data[:, 0], reduced_data[:, 1],
+        c=result.labels, cmap="tab20", s=2, alpha=0.6,
+    )
+    plt.colorbar(scatter, ax=ax, label="Cluster")
+    ax.set_title(f"PCA — {n_clusters} Clusters")
+    ax.set_xlabel("PC 1")
+    ax.set_ylabel("PC 2")
+    plt.tight_layout()
+    _save(fig, save_dir, "pca_clusters")
+    plt.show()
+
+    if targets is not None:
+        cluster_targets = targets[result.indices]
+        fig, ax = plt.subplots(figsize=(10, 8))
+        scatter = ax.scatter(
+            reduced_data[:, 0], reduced_data[:, 1],
+            c=cluster_targets, cmap="tab20", s=2, alpha=0.6,
+        )
+        plt.colorbar(scatter, ax=ax, label="True Class")
+        ax.set_title("PCA — True Classes")
+        ax.set_xlabel("PC 1")
+        ax.set_ylabel("PC 2")
+        plt.tight_layout()
+        _save(fig, save_dir, "pca_true_classes")
+        plt.show()
+
+    fig, ax = plt.subplots(figsize=(max(8, n_clusters // 10), 4))
+    ax.bar(range(n_clusters), sizes)
+    ax.axhline(sizes.mean(), color="red", linestyle="--",
+               label=f"mean = {sizes.mean():.1f}")
+    ax.set_xlabel("Cluster ID")
+    ax.set_ylabel("Size")
+    ax.set_title("Cluster Size Distribution")
+    ax.legend()
+    plt.tight_layout()
+    _save(fig, save_dir, "cluster_sizes")
     plt.show()
 
 
