@@ -225,6 +225,8 @@ def _run_pca(features: np.ndarray, n_components: int) -> np.ndarray:
     norms = np.linalg.norm(features, axis=1, keepdims=True)
     data_scaled = features / np.maximum(norms, 1e-8)
     reduced_data = PCA(n_components=n_components, random_state=SEED).fit_transform(data_scaled)
+    if n_components == 2:
+        return reduced_data
     norms2 = np.linalg.norm(reduced_data, axis=1, keepdims=True)
     return reduced_data / np.maximum(norms2, 1e-8)
 
@@ -358,3 +360,41 @@ def plot_all(
     plot_confusion_matrix(model, loader, save_dir)
     plot_superclass_confusion_matrix(model, loader, save_dir)
     plot_per_class_accuracy(model, loader, save_dir)
+
+if __name__ == "__main__":
+    import argparse
+    from glob_config import ANNOTATION_BUDGETS
+    from model.model_utils import MODELS
+    from data.dataset import create_loader, get_indexed_datasets
+
+    parser = argparse.ArgumentParser(
+        description="Plot model diagnostics from a checkpoint."
+    )
+    parser.add_argument(
+        "--model",
+        default="ResNet18_pretrained",
+        choices=MODELS,
+        help="Model name (default: ResNet18_pretrained).",
+    )
+    parser.add_argument(
+        "--budget",
+        type=float,
+        default=ANNOTATION_BUDGETS[-1],
+        help=f"Annotation budget (default: {ANNOTATION_BUDGETS[-1]}).",
+    )
+    parser.add_argument("--batch-size", type=int, default=128)
+    parser.add_argument(
+        "--save",
+        nargs="?",
+        const=PLOTS_DIR,
+        default=None,
+        metavar="DIR",
+        help=f"Save plots as PNGs (default dir: {PLOTS_DIR}).",
+    )
+    args = parser.parse_args()
+
+    _, test_dataset = get_indexed_datasets()
+    test_loader = create_loader(
+        test_dataset, batch_size=args.batch_size, shuffle=False
+    )
+    plot_all(args.model, args.budget, test_loader, save_dir=args.save)
