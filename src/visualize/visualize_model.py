@@ -14,7 +14,7 @@ from model.checkpoint import load_model
 sns.set_theme(style="white")
 
 
-@functools.lru_cache(maxsize=1)
+@functools.lru_cache(maxsize=1) # load to cache once, read afterwards
 def _cifar100_meta() -> tuple[list[str], list[str], list[int]]:
     """Load and cache fine names, coarse names, and fine→coarse mapping."""
     with open(f"{CIFAR_DIR}/meta", "rb") as f:
@@ -48,7 +48,9 @@ def _save(fig: plt.Figure, save_dir: str | None, name: str) -> None:
     if save_dir is None:
         return
     os.makedirs(save_dir, exist_ok=True)
-    fig.savefig(os.path.join(save_dir, f"{name}.png"), dpi=150, bbox_inches="tight")
+    fig.savefig(
+        os.path.join(save_dir, f"{name}.png"), dpi=150, bbox_inches="tight"
+    )
 
 
 def plot_confusion_matrix(
@@ -220,6 +222,10 @@ def plot_all(
     """
     Load a model from checkpoint and run all three model diagnostic plots.
 
+    Reference
+    ---------
+    - All of these were taken directly from Labs
+
     Arguments
     ---------
     model_name : ModelName
@@ -234,48 +240,14 @@ def plot_all(
     Example
     -------
     >>> plot_all("ResNet18_pretrained", budget=0.1, loader=test_loader)
-    >>> plot_all("ResNet18_pretrained", budget=1.0, loader=test_loader, save_dir="data/plots")
+    >>> plot_all(
+    ...     "ResNet18_pretrained",
+    ...     budget=1.0,
+    ...     loader=test_loader,
+    ...     save_dir="data/plots"
+    ... )
     """
     model = load_model(model_name, budget)
     plot_confusion_matrix(model, loader, save_dir)
     plot_superclass_confusion_matrix(model, loader, save_dir)
     plot_per_class_accuracy(model, loader, save_dir)
-
-
-if __name__ == "__main__":
-    import argparse
-    from glob_config import ANNOTATION_BUDGETS
-    from model.model_utils import MODELS
-    from data.dataset import create_loader, get_indexed_datasets
-
-    parser = argparse.ArgumentParser(
-        description="Plot model diagnostics from a checkpoint."
-    )
-    parser.add_argument(
-        "--model",
-        default="ResNet18_pretrained",
-        choices=MODELS,
-        help="Model name (default: ResNet18_pretrained).",
-    )
-    parser.add_argument(
-        "--budget",
-        type=float,
-        default=ANNOTATION_BUDGETS[-1],
-        help=f"Annotation budget (default: {ANNOTATION_BUDGETS[-1]}).",
-    )
-    parser.add_argument("--batch-size", type=int, default=128)
-    parser.add_argument(
-        "--save",
-        nargs="?",
-        const=PLOTS_DIR,
-        default=None,
-        metavar="DIR",
-        help=f"Save plots as PNGs (default dir: {PLOTS_DIR}).",
-    )
-    args = parser.parse_args()
-
-    _, test_dataset = get_indexed_datasets()
-    test_loader = create_loader(
-        test_dataset, batch_size=args.batch_size, shuffle=False
-    )
-    plot_all(args.model, args.budget, test_loader, save_dir=args.save)

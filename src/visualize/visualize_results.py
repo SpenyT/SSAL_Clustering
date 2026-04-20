@@ -20,7 +20,9 @@ def _save(fig: plt.Figure, save_dir: str | None, name: str) -> None:
     if save_dir is None:
         return
     os.makedirs(save_dir, exist_ok=True)
-    fig.savefig(os.path.join(save_dir, f"{name}.png"), dpi=150, bbox_inches="tight")
+    fig.savefig(
+        os.path.join(save_dir, f"{name}.png"), dpi=150, bbox_inches="tight"
+    )
 
 
 def plot_epoch_curves(
@@ -258,42 +260,3 @@ def plot_all(
     plot_train_time(models, save_dir)
     for metric in ("test_acc", "test_loss", "train_loss"):
         plot_epoch_curves(models, metric=metric, save_dir=save_dir)
-
-
-if __name__ == "__main__":
-    import re
-    import argparse
-
-    parser = argparse.ArgumentParser(
-        description="Plot experiment results from the results CSV."
-    )
-    parser.add_argument(
-        "--models",
-        nargs="*",
-        default=None,
-        help="Model names to include (default: all).",
-    )
-    parser.add_argument(
-        "--save",
-        nargs="?",
-        const=glob_config.PLOTS_DIR,
-        default=None,
-        metavar="DIR",
-        help=f"Save plots as PNGs (default dir: {glob_config.PLOTS_DIR}).",
-    )
-    args = parser.parse_args()
-
-    pattern = re.compile(r"results_(\d+)\.csv")
-    matches = [
-        (int(m.group(1)), f)
-        for f in os.listdir(glob_config.RESULTS_DIR)
-        if (m := pattern.fullmatch(f))
-    ]
-    if not matches:
-        raise FileNotFoundError(
-            f"No results CSV found in {glob_config.RESULTS_DIR}. Run training first."
-        )
-    _, latest = max(matches)
-    glob_config.RESULTS_PATH = f"{glob_config.RESULTS_DIR}/{latest}"
-
-    plot_all(models=args.models, save_dir=args.save)

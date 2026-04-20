@@ -280,7 +280,7 @@ class ActiveLearningPool:
         https://burrsettles.com/pub/settles.activelearning.pdf
     - Implementation:
         https://modal-python.readthedocs.io/en/latest/content/examples/pool-based_sampling.html
-        
+
     Arguments
     ---------
     train_dataset : IndexedCIFAR100

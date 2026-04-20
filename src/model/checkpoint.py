@@ -36,7 +36,7 @@ def find_latest_checkpoint(model_name: ModelName, budget: float) -> str | None:
     Find the most recently modified checkpoint for a given model and budget.
 
     Scans CHECKPOINT_DIR for files matching the pattern
-    ``<model_name>_budget<budget>.pt`` and returns the one with the
+    "<model_name>_budget<budget>.pt" and returns the one with the
     latest modification time.
 
     Arguments
