@@ -8,10 +8,55 @@ from model.model_utils import ModelName
 
 
 def checkpoint_path(model_name: ModelName, budget: float) -> str:
+    """
+    Build the canonical file path for a model checkpoint.
+
+    Arguments
+    ---------
+    model_name : ModelName
+        The registered model name (e.g. "ResNet18_pretrained").
+    budget : float
+        Annotation budget fraction used when the model was trained.
+
+    Returns
+    -------
+    str
+        The full file path for the checkpoint file.
+
+    Example
+    -------
+    >>> checkpoint_path("ResNet18_pretrained", 0.1)
+    'checkpoints/ResNet18_pretrained_budget0.10.pt'
+    """
     return f"{CHECKPOINT_DIR}/{model_name}_budget{budget:.2f}.pt"
 
 
 def find_latest_checkpoint(model_name: ModelName, budget: float) -> str | None:
+    """
+    Find the most recently modified checkpoint for a given model and budget.
+
+    Scans CHECKPOINT_DIR for files matching the pattern
+    ``<model_name>_budget<budget>.pt`` and returns the one with the
+    latest modification time.
+
+    Arguments
+    ---------
+    model_name : ModelName
+        The registered model name (e.g. "ResNet18_pretrained").
+    budget : float
+        Annotation budget fraction used when the model was trained.
+
+    Returns
+    -------
+    str or None
+        Absolute path to the latest matching checkpoint, or None if
+        CHECKPOINT_DIR does not exist or no matching file is found.
+
+    Example
+    -------
+    >>> find_latest_checkpoint("ResNet18_pretrained", 0.1)
+    'checkpoints/ResNet18_pretrained_budget0.10.pt'
+    """
     if not os.path.isdir(CHECKPOINT_DIR):
         return None
     prefix = f"{model_name}_budget{budget:.2f}"
@@ -40,6 +85,51 @@ def save_checkpoint(
     test_acc: float,
     history: list[dict],
 ) -> None:
+    """
+    Serialize training state to a checkpoint file.
+
+    Creates the parent directory if it does not exist, then saves all
+    state dicts and training metrics in a single .pt file.
+
+    Reference
+    ---------
+    - https://docs.pytorch.org/tutorials/beginner/saving_loading_models.html
+    - https://apxml.com/courses/getting-started-with-pytorch/chapter-6-implementing-training-loop/saving-loading-model-checkpoints
+
+    Arguments
+    ---------
+    path : str
+        Destination file path for the checkpoint.
+    epoch : int
+        The epoch number just completed.
+    model : nn.Module
+        The model whose weights will be saved.
+    optimizer : Optimizer
+        The optimizer whose state will be saved.
+    scheduler : lr_scheduler._LRScheduler
+        The learning rate scheduler whose state will be saved.
+    scaler : GradScaler or None
+        The AMP gradient scaler, or None if AMP is not used.
+    train_loss : float
+        Training loss for the current epoch.
+    test_loss : float
+        Validation/test loss for the current epoch.
+    test_acc : float
+        Validation/test accuracy for the current epoch.
+    history : list[dict]
+        Full per-epoch training history accumulated so far.
+
+    Returns
+    -------
+    None
+
+    Example
+    -------
+    >>> save_checkpoint("checkpoints/run.pt", epoch=5, model=model,
+    ...                 optimizer=opt, scheduler=sched, scaler=None,
+    ...                 train_loss=0.4, test_loss=0.5, test_acc=0.82,
+    ...                 history=[])
+    """
     os.makedirs(os.path.dirname(path), exist_ok=True)
     torch.save(
         {
@@ -66,6 +156,43 @@ def load_checkpoint(
     scheduler: lr_scheduler._LRScheduler,
     scaler: GradScaler | None,
 ) -> dict | None:
+    """
+    Load a checkpoint and restore all training state in-place.
+
+    Restores the model, optimizer, scheduler, and scaler (if provided)
+    from the checkpoint at the given path. Returns the raw checkpoint
+    dict so callers can access epoch number, loss history, etc.
+
+    Reference
+    ---------
+    - https://docs.pytorch.org/tutorials/beginner/saving_loading_models.html
+    - https://apxml.com/courses/getting-started-with-pytorch/chapter-6-implementing-training-loop/saving-loading-model-checkpoints
+
+    Arguments
+    ---------
+    path : str
+        Path to the checkpoint file.
+    model : nn.Module
+        Model to restore weights into (modified in-place).
+    optimizer : Optimizer
+        Optimizer to restore state into (modified in-place).
+    scheduler : lr_scheduler._LRScheduler
+        Scheduler to restore state into (modified in-place).
+    scaler : GradScaler or None
+        AMP scaler to restore state into, or None if AMP is not used.
+
+    Returns
+    -------
+    dict or None
+        The raw checkpoint dict on success, or None if the file does
+        not exist or loading fails.
+
+    Example
+    -------
+    >>> ckpt = load_checkpoint("checkpoints/run.pt", model, opt, sched, scaler)
+    >>> if ckpt:
+    ...     start_epoch = ckpt["epoch"] + 1
+    """
     if not os.path.exists(path):
         return None
     try:
@@ -88,6 +215,12 @@ def load_model(model_name: ModelName, budget: float) -> nn.Module:
     Looks up the model architecture from a built-in registry, finds the
     latest matching checkpoint, and restores only the model weights.
     The returned model is in eval mode on DEVICE.
+
+    Reference
+    ---------
+    - https://docs.pytorch.org/tutorials/beginner/saving_loading_models.html
+    - https://apxml.com/courses/getting-started-with-pytorch/chapter-6-implementing-training-loop/saving-loading-model-checkpoints
+
 
     Arguments
     ---------
