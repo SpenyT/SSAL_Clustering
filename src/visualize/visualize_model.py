@@ -1,3 +1,4 @@
+import os
 import pickle
 import functools
 import numpy as np
@@ -6,7 +7,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import confusion_matrix
 from torch.utils.data import DataLoader
-from glob_config import DEVICE, CIFAR_DIR
+from glob_config import DEVICE, CIFAR_DIR, PLOTS_DIR
 from model.model_utils import ModelName
 from model.checkpoint import load_model
 
@@ -43,7 +44,18 @@ def _predict(
     return torch.cat(preds).numpy(), torch.cat(targets).numpy()
 
 
-def plot_confusion_matrix(model: torch.nn.Module, loader: DataLoader) -> None:
+def _save(fig: plt.Figure, save_dir: str | None, name: str) -> None:
+    if save_dir is None:
+        return
+    os.makedirs(save_dir, exist_ok=True)
+    fig.savefig(os.path.join(save_dir, f"{name}.png"), dpi=150, bbox_inches="tight")
+
+
+def plot_confusion_matrix(
+    model: torch.nn.Module,
+    loader: DataLoader,
+    save_dir: str | None = None,
+) -> None:
     """
     Plot a normalized confusion matrix over all 100 CIFAR-100 fine classes.
 
@@ -53,6 +65,8 @@ def plot_confusion_matrix(model: torch.nn.Module, loader: DataLoader) -> None:
         Trained model in eval mode on DEVICE.
     loader : DataLoader
         Test DataLoader returning ((imgs, labels), idx) batches.
+    save_dir : str | None
+        Directory to save the plot PNG. Default: None (no save).
 
     Example
     -------
@@ -80,11 +94,14 @@ def plot_confusion_matrix(model: torch.nn.Module, loader: DataLoader) -> None:
     ax.set_xticklabels(ax.get_xticklabels(), rotation=90, fontsize=6)
     ax.set_yticklabels(ax.get_yticklabels(), rotation=0, fontsize=6)
     plt.tight_layout()
+    _save(fig, save_dir, "confusion_matrix_fine")
     plt.show()
 
 
 def plot_superclass_confusion_matrix(
-    model: torch.nn.Module, loader: DataLoader
+    model: torch.nn.Module,
+    loader: DataLoader,
+    save_dir: str | None = None,
 ) -> None:
     """
     Plot a normalized confusion matrix over CIFAR-100's 20 superclasses.
@@ -98,6 +115,8 @@ def plot_superclass_confusion_matrix(
         Trained model in eval mode on DEVICE.
     loader : DataLoader
         Test DataLoader returning ((imgs, labels), idx) batches.
+    save_dir : str | None
+        Directory to save the plot PNG. Default: None (no save).
 
     Example
     -------
@@ -136,11 +155,14 @@ def plot_superclass_confusion_matrix(
     )
     ax.set_yticklabels(ax.get_yticklabels(), rotation=0, fontsize=9)
     plt.tight_layout()
+    _save(fig, save_dir, "confusion_matrix_superclass")
     plt.show()
 
 
 def plot_per_class_accuracy(
-    model: torch.nn.Module, loader: DataLoader
+    model: torch.nn.Module,
+    loader: DataLoader,
+    save_dir: str | None = None,
 ) -> None:
     """
     Horizontal bar chart of per-class accuracy, sorted lowest to highest.
@@ -153,6 +175,8 @@ def plot_per_class_accuracy(
         Trained model in eval mode on DEVICE.
     loader : DataLoader
         Test DataLoader returning ((imgs, labels), idx) batches.
+    save_dir : str | None
+        Directory to save the plot PNG. Default: None (no save).
 
     Example
     -------
@@ -166,7 +190,7 @@ def plot_per_class_accuracy(
     order = np.argsort(acc)
 
     col_w = max(len(n) for n in fine_names)
-    print("Per-class accuracy (worst → best):")
+    print("Per-class accuracy (worst -> best):")
     for i in order:
         print(f"  {fine_names[i]:<{col_w}}  {acc[i]:.4f}")
     print(f"  {'mean':<{col_w}}  {acc.mean():.4f}")
@@ -183,10 +207,16 @@ def plot_per_class_accuracy(
     ax.set_title("Per-Class Accuracy (sorted)")
     ax.legend()
     plt.tight_layout()
+    _save(fig, save_dir, "per_class_accuracy")
     plt.show()
 
 
-def plot_all(model_name: ModelName, budget: float, loader: DataLoader) -> None:
+def plot_all(
+    model_name: ModelName,
+    budget: float,
+    loader: DataLoader,
+    save_dir: str | None = None,
+) -> None:
     """
     Load a model from checkpoint and run all three model diagnostic plots.
 
@@ -198,15 +228,18 @@ def plot_all(model_name: ModelName, budget: float, loader: DataLoader) -> None:
         Annotation budget the model was trained on.
     loader : DataLoader
         Test DataLoader returning ((imgs, labels), idx) batches.
+    save_dir : str | None
+        Directory to save plot PNGs. Default: None (no save).
 
     Example
     -------
     >>> plot_all("ResNet18_pretrained", budget=0.1, loader=test_loader)
+    >>> plot_all("ResNet18_pretrained", budget=1.0, loader=test_loader, save_dir="data/plots")
     """
     model = load_model(model_name, budget)
-    plot_confusion_matrix(model, loader)
-    plot_superclass_confusion_matrix(model, loader)
-    plot_per_class_accuracy(model, loader)
+    plot_confusion_matrix(model, loader, save_dir)
+    plot_superclass_confusion_matrix(model, loader, save_dir)
+    plot_per_class_accuracy(model, loader, save_dir)
 
 
 if __name__ == "__main__":
@@ -231,10 +264,18 @@ if __name__ == "__main__":
         help=f"Annotation budget (default: {ANNOTATION_BUDGETS[-1]}).",
     )
     parser.add_argument("--batch-size", type=int, default=128)
+    parser.add_argument(
+        "--save",
+        nargs="?",
+        const=PLOTS_DIR,
+        default=None,
+        metavar="DIR",
+        help=f"Save plots as PNGs (default dir: {PLOTS_DIR}).",
+    )
     args = parser.parse_args()
 
     _, test_dataset = get_indexed_datasets()
     test_loader = create_loader(
         test_dataset, batch_size=args.batch_size, shuffle=False
     )
-    plot_all(args.model, args.budget, test_loader)
+    plot_all(args.model, args.budget, test_loader, save_dir=args.save)

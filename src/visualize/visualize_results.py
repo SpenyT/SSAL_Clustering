@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -15,10 +16,18 @@ def _last_epoch(df: pd.DataFrame) -> pd.DataFrame:
     return df.loc[df.groupby(["model", "budget"])["epoch"].idxmax()]
 
 
+def _save(fig: plt.Figure, save_dir: str | None, name: str) -> None:
+    if save_dir is None:
+        return
+    os.makedirs(save_dir, exist_ok=True)
+    fig.savefig(os.path.join(save_dir, f"{name}.png"), dpi=150, bbox_inches="tight")
+
+
 def plot_epoch_curves(
     models: list[ModelName] | None = None,
     budgets: list[float] | None = None,
     metric: str = "test_acc",
+    save_dir: str | None = None,
 ) -> None:
     """
     Plot a training metric over epochs, one subplot per annotation budget.
@@ -32,6 +41,8 @@ def plot_epoch_curves(
     metric : str
         Column name to plot (e.g. "test_acc", "test_loss", "train_loss").
         Default: "test_acc".
+    save_dir : str | None
+        Directory to save the plot PNG. Default: None (no save).
 
     Example
     -------
@@ -58,10 +69,14 @@ def plot_epoch_curves(
 
     plt.suptitle(metric.replace("_", " ").title() + " per Epoch", y=1.02)
     plt.tight_layout()
+    _save(fig, save_dir, f"epoch_curves_{metric}")
     plt.show()
 
 
-def plot_accuracy_vs_budget(models: list[ModelName] | None = None) -> None:
+def plot_accuracy_vs_budget(
+    models: list[ModelName] | None = None,
+    save_dir: str | None = None,
+) -> None:
     """
     Plot final test accuracy against annotation budget for each model.
 
@@ -69,6 +84,8 @@ def plot_accuracy_vs_budget(models: list[ModelName] | None = None) -> None:
     ---------
     models : list[ModelName] | None
         Models to include. Default: all models in the CSV.
+    save_dir : str | None
+        Directory to save the plot PNG. Default: None (no save).
 
     Example
     -------
@@ -78,7 +95,7 @@ def plot_accuracy_vs_budget(models: list[ModelName] | None = None) -> None:
     if models:
         df = df[df["model"].isin(models)]
 
-    plt.figure(figsize=(7, 4))
+    fig = plt.figure(figsize=(7, 4))
     for model_name, grp in df.groupby("model"):
         grp = grp.sort_values("budget")
         plt.plot(
@@ -89,10 +106,14 @@ def plot_accuracy_vs_budget(models: list[ModelName] | None = None) -> None:
     plt.title("Test Accuracy vs. Annotation Budget")
     plt.legend()
     plt.tight_layout()
+    _save(fig, save_dir, "accuracy_vs_budget")
     plt.show()
 
 
-def plot_loss_vs_budget(models: list[ModelName] | None = None) -> None:
+def plot_loss_vs_budget(
+    models: list[ModelName] | None = None,
+    save_dir: str | None = None,
+) -> None:
     """
     Plot final test loss against annotation budget for each model.
 
@@ -100,6 +121,8 @@ def plot_loss_vs_budget(models: list[ModelName] | None = None) -> None:
     ---------
     models : list[ModelName] | None
         Models to include. Default: all models in the CSV.
+    save_dir : str | None
+        Directory to save the plot PNG. Default: None (no save).
 
     Example
     -------
@@ -109,7 +132,7 @@ def plot_loss_vs_budget(models: list[ModelName] | None = None) -> None:
     if models:
         df = df[df["model"].isin(models)]
 
-    plt.figure(figsize=(7, 4))
+    fig = plt.figure(figsize=(7, 4))
     for model_name, grp in df.groupby("model"):
         grp = grp.sort_values("budget")
         plt.plot(
@@ -120,10 +143,14 @@ def plot_loss_vs_budget(models: list[ModelName] | None = None) -> None:
     plt.title("Test Loss vs. Annotation Budget")
     plt.legend()
     plt.tight_layout()
+    _save(fig, save_dir, "loss_vs_budget")
     plt.show()
 
 
-def plot_accuracy_vs_time(models: list[ModelName] | None = None) -> None:
+def plot_accuracy_vs_time(
+    models: list[ModelName] | None = None,
+    save_dir: str | None = None,
+) -> None:
     """
     Scatter plot of final test accuracy vs. total training time per run.
 
@@ -134,6 +161,8 @@ def plot_accuracy_vs_time(models: list[ModelName] | None = None) -> None:
     ---------
     models : list[ModelName] | None
         Models to include. Default: all models in the CSV.
+    save_dir : str | None
+        Directory to save the plot PNG. Default: None (no save).
 
     Example
     -------
@@ -143,7 +172,7 @@ def plot_accuracy_vs_time(models: list[ModelName] | None = None) -> None:
     if models:
         df = df[df["model"].isin(models)]
 
-    plt.figure(figsize=(7, 4))
+    fig = plt.figure(figsize=(7, 4))
     for model_name, grp in df.groupby("model"):
         plt.scatter(
             grp["total_elapsed_time"] / 60, grp["test_acc"], label=model_name
@@ -161,10 +190,14 @@ def plot_accuracy_vs_time(models: list[ModelName] | None = None) -> None:
     plt.title("Accuracy vs. Training Time")
     plt.legend()
     plt.tight_layout()
+    _save(fig, save_dir, "accuracy_vs_time")
     plt.show()
 
 
-def plot_train_time(models: list[ModelName] | None = None) -> None:
+def plot_train_time(
+    models: list[ModelName] | None = None,
+    save_dir: str | None = None,
+) -> None:
     """
     Grouped bar chart of average per-epoch training time by annotation budget.
 
@@ -172,6 +205,8 @@ def plot_train_time(models: list[ModelName] | None = None) -> None:
     ---------
     models : list[ModelName] | None
         Models to include. Default: all models in the CSV.
+    save_dir : str | None
+        Directory to save the plot PNG. Default: None (no save).
 
     Example
     -------
@@ -186,16 +221,21 @@ def plot_train_time(models: list[ModelName] | None = None) -> None:
     pivot.index = [f"{int(b * 100)}%" for b in pivot.index]
 
     ax = pivot.plot(kind="bar", figsize=(8, 4))
+    fig = ax.get_figure()
     ax.set_xlabel("Annotation Budget")
     ax.set_ylabel("Avg. Train Time per Epoch (s)")
     ax.set_title("Training Time per Epoch by Budget")
     plt.xticks(rotation=0)
     plt.legend()
     plt.tight_layout()
+    _save(fig, save_dir, "train_time_per_budget")
     plt.show()
 
 
-def plot_all(models: list[ModelName] | None = None) -> None:
+def plot_all(
+    models: list[ModelName] | None = None,
+    save_dir: str | None = None,
+) -> None:
     """
     Run all result plots.
 
@@ -203,22 +243,24 @@ def plot_all(models: list[ModelName] | None = None) -> None:
     ---------
     models : list[ModelName] | None
         Models to include. Default: all models in the CSV.
+    save_dir : str | None
+        Directory to save plot PNGs. Default: None (no save).
 
     Example
     -------
     >>> plot_all()
     >>> plot_all(models=["ResNet18_pretrained", "ResNet18_scratch"])
+    >>> plot_all(save_dir="data/plots")
     """
-    plot_accuracy_vs_budget(models)
-    plot_loss_vs_budget(models)
-    plot_accuracy_vs_time(models)
-    plot_train_time(models)
+    plot_accuracy_vs_budget(models, save_dir)
+    plot_loss_vs_budget(models, save_dir)
+    plot_accuracy_vs_time(models, save_dir)
+    plot_train_time(models, save_dir)
     for metric in ("test_acc", "test_loss", "train_loss"):
-        plot_epoch_curves(models, metric=metric)
+        plot_epoch_curves(models, metric=metric, save_dir=save_dir)
 
 
 if __name__ == "__main__":
-    import os
     import re
     import argparse
 
@@ -231,6 +273,14 @@ if __name__ == "__main__":
         default=None,
         help="Model names to include (default: all).",
     )
+    parser.add_argument(
+        "--save",
+        nargs="?",
+        const=glob_config.PLOTS_DIR,
+        default=None,
+        metavar="DIR",
+        help=f"Save plots as PNGs (default dir: {glob_config.PLOTS_DIR}).",
+    )
     args = parser.parse_args()
 
     pattern = re.compile(r"results_(\d+)\.csv")
@@ -240,9 +290,10 @@ if __name__ == "__main__":
         if (m := pattern.fullmatch(f))
     ]
     if not matches:
-        raise FileNotFoundError(f"No results CSV found in {
-            glob_config.RESULTS_DIR}. Run training first.")
+        raise FileNotFoundError(
+            f"No results CSV found in {glob_config.RESULTS_DIR}. Run training first."
+        )
     _, latest = max(matches)
     glob_config.RESULTS_PATH = f"{glob_config.RESULTS_DIR}/{latest}"
 
-    plot_all(models=args.models)
+    plot_all(models=args.models, save_dir=args.save)

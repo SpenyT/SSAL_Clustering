@@ -172,6 +172,7 @@ CIFAR_DIR: Final[str] = f"{DATA_DIR}/cifar-100-python"
 VARIABLES_PATH: Final[str] = f"{DATA_DIR}/variables.pkl"
 RESULTS_DIR: Final[str] = f"{DATA_DIR}/results"
 CHECKPOINT_DIR: Final[str] = f"{DATA_DIR}/checkpoints"
+PLOTS_DIR: Final[str] = f"{DATA_DIR}/plots"
 RESULTS_PATH: str = f"{RESULTS_DIR}/results_{
     _get_current_file_number(RESULTS_DIR) + 1}.csv"
 
