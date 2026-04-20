@@ -2,13 +2,14 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 import numpy as np
+from sklearn.cluster import KMeans
 
 from glob_config import HAS_CUML, SEED
 
 if HAS_CUML:
-    from cuml.cluster import HDBSCAN, KMeans  # type: ignore
+    from cuml.cluster import HDBSCAN  # type: ignore
 else:
-    from sklearn.cluster import HDBSCAN, KMeans
+    from sklearn.cluster import HDBSCAN
 
 # Minimum samples in a cluster before it is eligible for splitting.
 _MIN_SPLIT_SIZE = 8
