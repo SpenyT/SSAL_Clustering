@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import warnings
 import numpy as np
 import torch
 import torch.nn as nn
@@ -268,7 +269,9 @@ class PCAExtractor(FeatureExtractor):
 
     def fit(self, dataset: Dataset, batch_size: int = 256) -> "PCAExtractor":
         features, _, _ = self.extractor.extract(dataset, batch_size)
-        return self._fit(torch.from_numpy(features).to(DEVICE))
+        X = torch.from_numpy(features).to(DEVICE)
+        X = nn.functional.normalize(X, dim=1)
+        return self._fit(X)
 
     @torch.no_grad()
     def _fit(self, X: torch.Tensor) -> "PCAExtractor":
@@ -298,7 +301,7 @@ class PCAExtractor(FeatureExtractor):
 
     def forward(self, imgs: torch.Tensor) -> torch.Tensor:
         assert hasattr(self, "components_"), "Call fit() before forward()"
-        feats = self.extractor(imgs)
+        feats = nn.functional.normalize(self.extractor(imgs), dim=1)
         return nn.functional.normalize(
             torch.matmul(feats - self.mean_, self.components_.t()), dim=1
         )
@@ -329,23 +332,38 @@ class UMAPExtractor(FeatureExtractor):
         Base extractor whose embeddings will be reduced.
     n_components : int
         Number of UMAP dimensions to reduce to. Default: 2.
+    min_dist : float
+        Minimum distance between points in the embedding. Use 0.0 for
+        clustering (preserves tight local structure); use 0.1+ for
+        visualization (spreads points apart). Default: 0.0.
+    n_neighbors : int
+        Size of the local neighbourhood UMAP uses to learn the manifold.
+        Larger values capture more global structure. Default: 15.
 
     Example
     -------
     >>> base = ResnetExtractor(pretrained=True)
-    >>> umap = UMAPExtractor(base, n_components=2)
+    >>> umap = UMAPExtractor(base, n_components=15, min_dist=0.0)
     >>> umap.fit(dataset)
     >>> features, indices, labels = umap.extract(dataset, batch_size=256)
     >>> features.shape
-    (1000, 2)
+    (1000, 15)
     """
 
     def __init__(
-        self, extractor: FeatureExtractor, n_components: int = 2
+        self,
+        extractor: FeatureExtractor,
+        n_components: int = 2,
+        min_dist: float = 0.0,
+        n_neighbors: int = 15,
+        metric: str = "cosine",
     ) -> None:
         super().__init__()
         self.extractor = extractor
         self._n_components = n_components
+        self._min_dist = min_dist
+        self._n_neighbors = n_neighbors
+        self._metric = metric
         self._umap = None
         self._use_cuml = False
 
@@ -359,8 +377,19 @@ class UMAPExtractor(FeatureExtractor):
             from umap import UMAP as _UMAP  # type: ignore
 
             self._use_cuml = False
-        self._umap = _UMAP(n_components=self._n_components)
-        self._umap.fit(features)
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message="n_jobs value .* overridden",
+                category=UserWarning,
+            )
+            self._umap = _UMAP(
+                n_components=self._n_components,
+                min_dist=self._min_dist,
+                n_neighbors=self._n_neighbors,
+                metric=self._metric,
+            )
+            self._umap.fit(features)
         return self
 
     def extract(
