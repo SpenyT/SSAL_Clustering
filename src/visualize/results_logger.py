@@ -122,6 +122,8 @@ class ResultsLogger:
         if not append:
             with open(path, "w", newline="") as f:
                 csv.writer(f).writerow(LogEntry.__dataclass_fields__.keys())
+                f.flush()
+                os.fsync(f.fileno())
 
     @classmethod
     def write_log(cls, log: LogEntry) -> None:
@@ -142,3 +144,5 @@ class ResultsLogger:
             )
         with open(cls._path, "a", newline="") as f:
             csv.writer(f).writerow(log.get_values())
+            f.flush()
+            os.fsync(f.fileno())
