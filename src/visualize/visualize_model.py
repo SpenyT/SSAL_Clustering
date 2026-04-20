@@ -30,7 +30,9 @@ def _cifar100_meta() -> tuple[list[str], list[str], list[int]]:
     return fine_names, coarse_names, fine_to_coarse
 
 
-def _predict(model: torch.nn.Module, loader: DataLoader) -> tuple[np.ndarray, np.ndarray]:
+def _predict(
+    model: torch.nn.Module, loader: DataLoader
+) -> tuple[np.ndarray, np.ndarray]:
     preds, targets = [], []
     model.eval()
     with torch.no_grad():
@@ -64,8 +66,14 @@ def plot_confusion_matrix(model: torch.nn.Module, loader: DataLoader) -> None:
     print(f"Overall accuracy (mean per-class): {overall_acc:.4f}")
 
     fig, ax = plt.subplots(figsize=(20, 18))
-    sns.heatmap(cm, annot=False, cmap="Blues", ax=ax,
-                xticklabels=fine_names, yticklabels=fine_names)
+    sns.heatmap(
+        cm,
+        annot=False,
+        cmap="Blues",
+        ax=ax,
+        xticklabels=fine_names,
+        yticklabels=fine_names,
+    )
     ax.set_xlabel("Predicted")
     ax.set_ylabel("True")
     ax.set_title("Confusion Matrix — 100 Fine Classes (row-normalized)")
@@ -75,7 +83,9 @@ def plot_confusion_matrix(model: torch.nn.Module, loader: DataLoader) -> None:
     plt.show()
 
 
-def plot_superclass_confusion_matrix(model: torch.nn.Module, loader: DataLoader) -> None:
+def plot_superclass_confusion_matrix(
+    model: torch.nn.Module, loader: DataLoader
+) -> None:
     """
     Plot a normalized confusion matrix over CIFAR-100's 20 superclasses.
 
@@ -102,23 +112,36 @@ def plot_superclass_confusion_matrix(model: torch.nn.Module, loader: DataLoader)
     per_superclass_acc = cm.diagonal()
     col_w = max(len(n) for n in coarse_names)
     print("Per-superclass accuracy:")
-    for name, acc in sorted(zip(coarse_names, per_superclass_acc), key=lambda x: x[1]):
+    for name, acc in sorted(
+        zip(coarse_names, per_superclass_acc), key=lambda x: x[1]
+    ):
         print(f"  {name:<{col_w}}  {acc:.4f}")
     print(f"  {'mean':<{col_w}}  {per_superclass_acc.mean():.4f}")
 
     fig, ax = plt.subplots(figsize=(12, 10))
-    sns.heatmap(cm, annot=True, fmt=".2f", cmap="Blues", ax=ax,
-                xticklabels=coarse_names, yticklabels=coarse_names)
+    sns.heatmap(
+        cm,
+        annot=True,
+        fmt=".2f",
+        cmap="Blues",
+        ax=ax,
+        xticklabels=coarse_names,
+        yticklabels=coarse_names,
+    )
     ax.set_xlabel("Predicted")
     ax.set_ylabel("True")
     ax.set_title("Confusion Matrix — 20 Superclasses (row-normalized)")
-    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right", fontsize=9)
+    ax.set_xticklabels(
+        ax.get_xticklabels(), rotation=45, ha="right", fontsize=9
+    )
     ax.set_yticklabels(ax.get_yticklabels(), rotation=0, fontsize=9)
     plt.tight_layout()
     plt.show()
 
 
-def plot_per_class_accuracy(model: torch.nn.Module, loader: DataLoader) -> None:
+def plot_per_class_accuracy(
+    model: torch.nn.Module, loader: DataLoader
+) -> None:
     """
     Horizontal bar chart of per-class accuracy, sorted lowest to highest.
 
@@ -150,8 +173,12 @@ def plot_per_class_accuracy(model: torch.nn.Module, loader: DataLoader) -> None:
 
     fig, ax = plt.subplots(figsize=(6, 22))
     ax.barh([fine_names[i] for i in order], acc[order])
-    ax.axvline(acc.mean(), color="red", linestyle="--",
-               label=f"mean = {acc.mean():.3f}")
+    ax.axvline(
+        acc.mean(),
+        color="red",
+        linestyle="--",
+        label=f"mean = {acc.mean():.3f}",
+    )
     ax.set_xlabel("Accuracy")
     ax.set_title("Per-Class Accuracy (sorted)")
     ax.legend()
@@ -188,14 +215,26 @@ if __name__ == "__main__":
     from model.model_utils import MODELS
     from data.dataset import create_loader, get_indexed_datasets
 
-    parser = argparse.ArgumentParser(description="Plot model diagnostics from a checkpoint.")
-    parser.add_argument("--model", default="ResNet18_pretrained", choices=MODELS,
-                        help="Model name (default: ResNet18_pretrained).")
-    parser.add_argument("--budget", type=float, default=ANNOTATION_BUDGETS[-1],
-                        help=f"Annotation budget (default: {ANNOTATION_BUDGETS[-1]}).")
+    parser = argparse.ArgumentParser(
+        description="Plot model diagnostics from a checkpoint."
+    )
+    parser.add_argument(
+        "--model",
+        default="ResNet18_pretrained",
+        choices=MODELS,
+        help="Model name (default: ResNet18_pretrained).",
+    )
+    parser.add_argument(
+        "--budget",
+        type=float,
+        default=ANNOTATION_BUDGETS[-1],
+        help=f"Annotation budget (default: {ANNOTATION_BUDGETS[-1]}).",
+    )
     parser.add_argument("--batch-size", type=int, default=128)
     args = parser.parse_args()
 
     _, test_dataset = get_indexed_datasets()
-    test_loader = create_loader(test_dataset, batch_size=args.batch_size, shuffle=False)
+    test_loader = create_loader(
+        test_dataset, batch_size=args.batch_size, shuffle=False
+    )
     plot_all(args.model, args.budget, test_loader)

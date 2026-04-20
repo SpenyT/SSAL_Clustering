@@ -3,6 +3,7 @@ from data.dataset import create_loader, get_indexed_datasets
 from pipeline.resnet18_baseline import run_scratch, run_pretrained, Verbosity
 from glob_config import ANNOTATION_BUDGETS
 
+
 def run_resnet_budget_experiment(
     epochs: int = 30,
     lr: float = 0.01,
@@ -52,4 +53,6 @@ def run_resnet_budget_experiment(
             resnet_subset, batch_size=batch_size, shuffle=True
         )
         run_scratch(train_loader, test_loader, budget, epochs, lr, verbosity)
-        run_pretrained(train_loader, test_loader, budget, epochs, lr, verbosity)
+        run_pretrained(
+            train_loader, test_loader, budget, epochs, lr, verbosity
+        )

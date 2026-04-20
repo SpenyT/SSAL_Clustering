@@ -92,7 +92,10 @@ def train_epoch(
 
 @torch.no_grad()
 def evaluate(
-    model: nn.Module, loader: DataLoader, criterion: nn.Module, leave: bool = False
+    model: nn.Module,
+    loader: DataLoader,
+    criterion: nn.Module,
+    leave: bool = False,
 ) -> tuple[float, float]:
     """
     Evaluate model loss and accuracy on a dataset.
@@ -238,29 +241,42 @@ def training_loop(
         range(start_epoch + 1, epochs + 1), desc="Epochs", leave=leave
     ):
         t_train = time.perf_counter()
-        train_loss = train_epoch(model, train_loader, optimizer, criterion, leave=leave)
+        train_loss = train_epoch(
+            model, train_loader, optimizer, criterion, leave=leave
+        )
         epoch_train_time = time.perf_counter() - t_train
         total_train_time += epoch_train_time
 
         t_eval = time.perf_counter()
-        test_loss, test_acc = evaluate(model, test_loader, criterion, leave=leave)
+        test_loss, test_acc = evaluate(
+            model, test_loader, criterion, leave=leave
+        )
         epoch_eval_time = time.perf_counter() - t_eval
         total_eval_time += epoch_eval_time
 
         scheduler.step()
         elapsed = time.time() - t0
-        history.append({"epoch": epoch, "train_loss": train_loss, "test_loss": test_loss, "test_acc": test_acc})
-        ResultsLogger.write_log(LogEntry(
-            model=model_name,
-            budget=budget,
-            epoch=epoch,
-            train_loss=train_loss,
-            test_loss=test_loss,
-            test_acc=test_acc,
-            train_time=epoch_train_time,
-            test_time=epoch_eval_time,
-            total_elapsed_time=elapsed,
-        ))
+        history.append(
+            {
+                "epoch": epoch,
+                "train_loss": train_loss,
+                "test_loss": test_loss,
+                "test_acc": test_acc,
+            }
+        )
+        ResultsLogger.write_log(
+            LogEntry(
+                model=model_name,
+                budget=budget,
+                epoch=epoch,
+                train_loss=train_loss,
+                test_loss=test_loss,
+                test_acc=test_acc,
+                train_time=epoch_train_time,
+                test_time=epoch_eval_time,
+                total_elapsed_time=elapsed,
+            )
+        )
         if verbosity == "full":
             tqdm.write(f"Epoch {
                 epoch:>3}/{epochs} | train_loss: {
@@ -287,13 +303,11 @@ def training_loop(
     )
     if verbosity != "quiet":
         print(
-            f"Done | time: {elapsed:.1f}s | avg_batch: {avg_batch_time:.3f}s | "
-            f"samples: {n_samples} | batch_size: {batch_size} | "
-            f"batches/epoch: {n_batches} | "
-            f"train_loss: {
-                train_loss:.4f} | test_loss: {
-                test_loss:.4f} | test_acc: {
-                test_acc:.4f}"
+            f"Done | time: {elapsed:.1f}s | "
+            f"avg_batch: {avg_batch_time:.3f}s | samples: {n_samples} | "
+            f"batch_size: {batch_size} | batches/epoch: {n_batches} | "
+            f"train_loss: {train_loss:.4f} | test_loss: {test_loss:.4f} | "
+            f"test_acc: {test_acc:.4f}"
         )
     return (
         train_loss,

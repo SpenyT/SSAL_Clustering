@@ -81,7 +81,9 @@ def plot_accuracy_vs_budget(models: list[ModelName] | None = None) -> None:
     plt.figure(figsize=(7, 4))
     for model_name, grp in df.groupby("model"):
         grp = grp.sort_values("budget")
-        plt.plot(grp["budget"] * 100, grp["test_acc"], marker="o", label=model_name)
+        plt.plot(
+            grp["budget"] * 100, grp["test_acc"], marker="o", label=model_name
+        )
     plt.xlabel("Annotation Budget (%)")
     plt.ylabel("Test Accuracy")
     plt.title("Test Accuracy vs. Annotation Budget")
@@ -110,7 +112,9 @@ def plot_loss_vs_budget(models: list[ModelName] | None = None) -> None:
     plt.figure(figsize=(7, 4))
     for model_name, grp in df.groupby("model"):
         grp = grp.sort_values("budget")
-        plt.plot(grp["budget"] * 100, grp["test_loss"], marker="o", label=model_name)
+        plt.plot(
+            grp["budget"] * 100, grp["test_loss"], marker="o", label=model_name
+        )
     plt.xlabel("Annotation Budget (%)")
     plt.ylabel("Test Loss")
     plt.title("Test Loss vs. Annotation Budget")
@@ -141,7 +145,9 @@ def plot_accuracy_vs_time(models: list[ModelName] | None = None) -> None:
 
     plt.figure(figsize=(7, 4))
     for model_name, grp in df.groupby("model"):
-        plt.scatter(grp["total_elapsed_time"] / 60, grp["test_acc"], label=model_name)
+        plt.scatter(
+            grp["total_elapsed_time"] / 60, grp["test_acc"], label=model_name
+        )
         for _, row in grp.iterrows():
             plt.annotate(
                 f"{int(row['budget'] * 100)}%",
@@ -216,15 +222,26 @@ if __name__ == "__main__":
     import re
     import argparse
 
-    parser = argparse.ArgumentParser(description="Plot experiment results from the results CSV.")
-    parser.add_argument("--models", nargs="*", default=None,
-                        help="Model names to include (default: all).")
+    parser = argparse.ArgumentParser(
+        description="Plot experiment results from the results CSV."
+    )
+    parser.add_argument(
+        "--models",
+        nargs="*",
+        default=None,
+        help="Model names to include (default: all).",
+    )
     args = parser.parse_args()
 
     pattern = re.compile(r"results_(\d+)\.csv")
-    matches = [(int(m.group(1)), f) for f in os.listdir(glob_config.RESULTS_DIR) if (m := pattern.fullmatch(f))]
+    matches = [
+        (int(m.group(1)), f)
+        for f in os.listdir(glob_config.RESULTS_DIR)
+        if (m := pattern.fullmatch(f))
+    ]
     if not matches:
-        raise FileNotFoundError(f"No results CSV found in {glob_config.RESULTS_DIR}. Run training first.")
+        raise FileNotFoundError(f"No results CSV found in {
+            glob_config.RESULTS_DIR}. Run training first.")
     _, latest = max(matches)
     glob_config.RESULTS_PATH = f"{glob_config.RESULTS_DIR}/{latest}"
 

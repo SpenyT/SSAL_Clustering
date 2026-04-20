@@ -116,8 +116,12 @@ def load_model(model_name: ModelName, budget: float) -> nn.Module:
     from model.resnet import load_resnet18
 
     _registry: dict[str, callable] = {
-        "ResNet18_pretrained": lambda: load_resnet18(with_pretrained_weights=False),
-        "ResNet18_scratch":    lambda: load_resnet18(with_pretrained_weights=False),
+        "ResNet18_pretrained": lambda: load_resnet18(
+            with_pretrained_weights=False
+        ),
+        "ResNet18_scratch": lambda: load_resnet18(
+            with_pretrained_weights=False
+        ),
     }
 
     if model_name not in _registry:
