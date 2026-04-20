@@ -186,8 +186,16 @@ PIN_MEMORY: Final[bool] = DEVICE.type != "cpu"
 USE_AMP: Final[bool] = _is_amp_supported()
 HAS_CUML: Final[bool] = _try_import_cuml()
 
+def _in_notebook() -> bool:
+    try:
+        return get_ipython().__class__.__name__ in ("ZMQInteractiveShell", "Shell")
+    except NameError:
+        return False
+
+
 # runtime config
-NUM_WORKERS: int = 0 if os.name == "nt" else max(2, os.cpu_count() // 2)
+# fix for google colab warning: force 0 workers there.
+NUM_WORKERS: int = 0 if (os.name == "nt" or _in_notebook()) else max(2, os.cpu_count() // 2)
 IS_RESUME: bool = False
 APPEND_LOG: bool = False
 
