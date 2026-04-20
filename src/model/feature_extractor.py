@@ -159,6 +159,8 @@ class FeatureExtractor(nn.Module, ABC):
             all_indices.append(idxs)
             all_labels.append(labels)
 
+        del loader  # shut down workers before returning so they aren't inherited by the next fork
+
         features = torch.cat(all_features).numpy()
         indices = torch.cat(all_indices).numpy()
         labels = torch.cat(all_labels).numpy()
