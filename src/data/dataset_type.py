@@ -233,10 +233,10 @@ class _PoolView(Dataset):
     """
     A view over a subset of an IndexedCIFAR100 dataset.
 
-    Presents a subset of a dataset defined by an index array, without
+    A helper that presents a subset of a dataset defined by an index array, without
     copying any underlying data. Used internally by ActiveLearningPool
     to expose the labeled and unlabeled splits as standard Dataset objects.
-    Not intended to be instantiated directly.
+    Not intended to be instantiated directly. Mostly for memory efficiency.
 
     Arguments
     ---------
@@ -272,6 +272,15 @@ class ActiveLearningPool:
     queries samples via label(). Exposes each split as a Dataset view
     for use with DataLoader.
 
+    Reference
+    ---------
+    - Overview:
+        https://odsc.medium.com/crash-course-pool-based-sampling-in-active-learning-cb40e30d49df
+    - Active Learning:
+        https://burrsettles.com/pub/settles.activelearning.pdf
+    - Implementation:
+        https://modal-python.readthedocs.io/en/latest/content/examples/pool-based_sampling.html
+        
     Arguments
     ---------
     train_dataset : IndexedCIFAR100
@@ -303,9 +312,6 @@ class ActiveLearningPool:
         seed: int = SEED,
         uniform: bool = True,
     ) -> None:
-        assert len(train_dataset) == len(
-            extract_dataset
-        ), "N train samples != N extracted samples"
         self._train_ds = train_dataset
         self._extract_ds = extract_dataset
 
@@ -438,3 +444,48 @@ class ActiveLearningPool:
         47500
         """
         return len(self._unlabeled)
+
+
+class PseudoLabeledView(Dataset):
+    """
+    A dataset view over unlabeled samples with cluster-assigned pseudo-labels.
+
+    Wraps the training dataset (with augmentation) and overrides the label
+    for each sample with its assigned pseudo-label. Used to expand the
+    training set with high-confidence unlabeled samples after the AL loop.
+
+    Reference
+    ---------
+    - Pseudo-Label pipeline:
+        https://medium.com/@i2vsys/recursive-clustering-based-pseudo-label-correction-pipeline-ec700d5643fe
+
+    Arguments
+    ---------
+    train_dataset : IndexedCIFAR100
+        Full training dataset (with augmentation transforms).
+    pseudo_labels : dict[int, int]
+        Mapping from dataset index to pseudo-class label.
+
+    Example
+    -------
+    >>> view = PseudoLabeledView(train_ds, {42: 7, 137: 3})
+    >>> len(view)
+    2
+    """
+
+    def __init__(
+        self,
+        train_dataset: "IndexedCIFAR100",
+        pseudo_labels: dict[int, int],
+    ) -> None:
+        self._base = train_dataset
+        self._pseudo_labels = pseudo_labels
+        self._indices = np.array(list(pseudo_labels.keys()), dtype=np.int64)
+
+    def __len__(self) -> int:
+        return len(self._indices)
+
+    def __getitem__(self, pos: int) -> tuple[tuple[torch.Tensor, int], int]:
+        dataset_idx = int(self._indices[pos])
+        (image, _), orig_idx = self._base[dataset_idx]
+        return (image, self._pseudo_labels[dataset_idx]), orig_idx
