@@ -21,6 +21,10 @@ from visualize.results_logger import ResultsLogger, LogEntry
 Verbosity = Literal["full", "summary", "quiet"]
 
 # if gpu ends up using amp, scaler just scales back up to float32
+# literally searched up how to make my code faster and found this.
+# I like fast an optimized code.
+# source: https://docs.pytorch.org/tutorials/recipes/recipes/amp_recipe.html
+# This source applies to autocast too
 _scaler = (
     GradScaler(device=DEVICE.type)
     if (DEVICE.type == "cuda" and USE_AMP)
